@@ -202,11 +202,10 @@ public class DiscordBot extends ListenerAdapter {
 
                 System.out.println("Turn: " + turn);
                 if (button.getStyle().equals(ButtonStyle.DANGER)) {
-                    event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.DANGER)).queue();
+                    event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.DANGER)).complete();
                     redRemaining--;
-                    event.getMessage().editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + "```").queue();
+                    event.getMessage().editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + "```").complete();
                     if (redRemaining == 0) {
-                        System.out.println("dwadwadwad");
                         event.getChannel().sendMessage("The Red Team has won!").queue();
                         running = false;
                         return;
@@ -214,9 +213,9 @@ public class DiscordBot extends ListenerAdapter {
                 }
 
                 if (button.getStyle().equals(ButtonStyle.PRIMARY)) {
-                    event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.PRIMARY)).queue();
+                    event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.PRIMARY)).complete();
                     blueRemaining--;
-                    event.getMessage().editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + "```").queue();
+                    event.getMessage().editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + "```").complete();
                     if (blueRemaining == 0) {
                         event.getChannel().sendMessage("The Blue Team has won!").queue();
                         running = false;
@@ -225,7 +224,7 @@ public class DiscordBot extends ListenerAdapter {
                 }
 
                 if (button.getStyle().equals(ButtonStyle.SECONDARY)) {
-                    event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.SECONDARY)).queue();
+                    event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.SECONDARY)).complete();
                 }
             }
         }
