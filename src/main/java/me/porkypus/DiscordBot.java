@@ -90,6 +90,10 @@ public class DiscordBot extends ListenerAdapter {
             }
             running = true;
             pool = new ArrayList<>();
+            spymaster = new ArrayList<>();
+            red = new ArrayList<>();
+            blue = new ArrayList<>();
+
             event.reply("```Spymasters: " + spymaster + "\nRed: " + red + "\nBlue: " + blue + "```")
                     .addActionRow(Button.primary("random", "Randomise Teams"))
                     .queue();
@@ -178,7 +182,7 @@ public class DiscordBot extends ListenerAdapter {
                 }
             }
             event.getMessage().editMessage("Spymasters: " + spymaster + "\nRed: " + red + "\nBlue: " + blue).complete();
-            event.editButton(event.getButton().asDisabled()).complete();
+            event.editButton(event.getButton().asDisabled()).submit();
         }
 
         for (Button button : spymasterButtonList) {
