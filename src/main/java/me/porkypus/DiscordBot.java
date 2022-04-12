@@ -2,6 +2,7 @@ package me.porkypus;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
@@ -20,6 +21,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 
@@ -181,6 +183,11 @@ public class DiscordBot extends ListenerAdapter {
                     blue.add(pool.get(i));
                 }
             }
+            TextChannel textChannel = Objects.requireNonNull(event.getGuild()).getTextChannelsByName("spymasters", true).get(0);
+            textChannel.createPermissionOverride(event.getGuild().getPublicRole()).setDeny(Permission.VIEW_CHANNEL).queue();
+            for (User user : spymaster) {
+                textChannel.createPermissionOverride(Objects.requireNonNull(event.getGuild().getMember(user))).setAllow(Permission.VIEW_CHANNEL).queue();
+            }
             event.getMessage().editMessage("Spymasters: " + spymaster + "\nRed: " + red + "\nBlue: " + blue).complete();
             event.editButton(event.getButton().asDisabled()).submit();
         }
@@ -192,19 +199,18 @@ public class DiscordBot extends ListenerAdapter {
             }
             if ((button.getId() + "x").equals(event.getButton().getId())) {
                 if (red.contains(event.getUser()) && turn != 0) {
-                    event.deferEdit().queue();
+                    event.deferEdit().complete();
                     return;
                 }
                 if (blue.contains(event.getUser()) && turn != 1) {
-                    event.deferEdit().queue();
+                    event.deferEdit().complete();
                     return;
                 }
                 if (!red.contains(event.getUser()) && !blue.contains(event.getUser())) {
-                    event.deferEdit().queue();
+                    event.deferEdit().complete();
                     return;
                 }
 
-                System.out.println("Turn: " + turn);
                 if (button.getStyle().equals(ButtonStyle.DANGER)) {
                     event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.DANGER)).complete();
                     redRemaining--;
