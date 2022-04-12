@@ -27,6 +27,7 @@ public class DiscordBot extends ListenerAdapter {
 
     boolean running = false;
     int turn = 0; // 0 is red turn and 1 is blue turn
+    int guesses = 1;
 
     static List<String> wordList = new ArrayList<>();
     static List<Button> spymasterButtonList = new ArrayList<>();
@@ -35,8 +36,6 @@ public class DiscordBot extends ListenerAdapter {
     static List<User> spymaster = new ArrayList<>();
     static List<User> red = new ArrayList<>();
     static List<User> blue = new ArrayList<>();
-
-
 
     int redRemaining = 9;
     int blueRemaining = 8;
@@ -48,7 +47,7 @@ public class DiscordBot extends ListenerAdapter {
                 .setActivity(Activity.playing("Type codies to get started"))
                 .build();
 
-        jda.upsertCommand("codies", "Type /codies to get started").queue();
+        jda.upsertCommand("codies", "Type /codies").queue();
 
         try {
             BufferedReader br = new BufferedReader(new FileReader("words.txt"));
@@ -95,7 +94,7 @@ public class DiscordBot extends ListenerAdapter {
                     event.getChannel().sendMessage(event.getAuthor().getName() + " is already on the red team").queue();
                 } else {
                     red.add(event.getAuthor());
-                    event.getChannel().sendMessage( "```" + event.getAuthor().getName() + " has been added to the blue team```").queue();
+                    event.getChannel().sendMessage( "```" + event.getAuthor().getName() + " has been added to the red team```").queue();
                 }
 
             }
@@ -116,8 +115,12 @@ public class DiscordBot extends ListenerAdapter {
             }
         }
 
+        if (msg.getContentRaw().length() > 6) {
+            if (msg.getContentRaw().startsWith("!clue ")) {
+                guesses = Integer.parseInt(msg.getContentRaw().substring(6));
+            }
+        }
     }
-
 
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
@@ -131,13 +134,6 @@ public class DiscordBot extends ListenerAdapter {
             playerButtonList = new ArrayList<>();
 
             Guild guild = event.getGuild();
-            /*
-            assert guild != null;
-            guild.createTextChannel("spymasters")
-                    .addPermissionOverride(guild.getPublicRole(), null, EnumSet.of(Permission.VIEW_CHANNEL))
-                    .queue();
-
-             */
 
             Collections.shuffle(wordList);
 
@@ -185,39 +181,50 @@ public class DiscordBot extends ListenerAdapter {
                     .queue();
 
         }
-
-        if (event.getName().equals("exit")){
-            running = false;
-        }
     }
 
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
-        event.editButton(event.getButton().asDisabled()).queue();
+
+
+        if ((red.contains(event.getUser()) && turn != 0) || (blue.contains(event.getUser()) && turn != 0)) return;
+        if (!red.contains(event.getUser()) && !blue.contains(event.getUser())) return;
 
         for (Button button : spymasterButtonList) {
             if ((button.getId() + "x").equals(event.getButton().getId())) {
                 if (button.getStyle().equals(ButtonStyle.DANGER)) {
+                    event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.DANGER)).queue();
                     redRemaining--;
                     event.getMessage().editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + "```").queue();
                     if (redRemaining == 0) {
                         event.getChannel().sendMessage("The Red Team has won!").queue();
                         running = false;
+                        return;
                     }
                 }
 
                 if (button.getStyle().equals(ButtonStyle.PRIMARY)) {
+                    event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.PRIMARY)).queue();
                     blueRemaining--;
                     event.getMessage().editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + "```").queue();
                     if (blueRemaining == 0) {
                         event.getChannel().sendMessage("The Blue Team has won!").queue();
                         running = false;
+                        return;
                     }
+                }
+
+                if (button.getStyle().equals(ButtonStyle.SECONDARY)) {
+                    event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.SECONDARY)).queue();
                 }
             }
         }
-
-
+        guesses--;
+        if (guesses == 0) {
+            if (turn == 0) turn = 1;
+            else turn = 0;
+            guesses = 1;
+        }
 
     }
 }
