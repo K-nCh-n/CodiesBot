@@ -86,10 +86,11 @@ public class DiscordBot extends ListenerAdapter {
         if (event.getName().equals("codies")) {
             if (running) {
                 event.reply("An instance of codies has already been started").queue();
+                return;
             }
             running = true;
             pool = new ArrayList<>();
-            event.reply("Spymasters: " + spymaster + "\nRed: " + red + "\nBlue: " + blue)
+            event.reply("```Spymasters: " + spymaster + "\nRed: " + red + "\nBlue: " + blue + "```")
                     .addActionRow(Button.primary("random", "Randomise Teams"))
                     .queue();
         }
@@ -98,6 +99,7 @@ public class DiscordBot extends ListenerAdapter {
             if (!running) {
                 event.reply("```Please initiate teams using /codies first").queue();
             } else {
+                turn = 0;
                 redRemaining = 9;
                 blueRemaining = 8;
 
@@ -160,6 +162,8 @@ public class DiscordBot extends ListenerAdapter {
         if (Objects.equals(event.getButton().getId(), "random")) {
             if (pool.size() < 4) {
                 event.getChannel().sendMessage("```More than 3 players are required```").queue();
+                event.deferEdit().queue();
+                return;
             }
             Collections.shuffle(pool);
             for (int i = 0; i < pool.size();i++) {
@@ -173,27 +177,37 @@ public class DiscordBot extends ListenerAdapter {
                     blue.add(pool.get(i));
                 }
             }
-            event.getMessage().editMessage("Spymasters: " + spymaster + "\nRed: " + red + "\nBlue: " + blue).queue();
-            event.editButton(event.getButton().asDisabled()).queue();
+            event.getMessage().editMessage("Spymasters: " + spymaster + "\nRed: " + red + "\nBlue: " + blue).complete();
+            event.editButton(event.getButton().asDisabled()).complete();
         }
 
         for (Button button : spymasterButtonList) {
+            if (!running) {
+                event.reply("The game has finished!").queue();
+                return;
+            }
             if ((button.getId() + "x").equals(event.getButton().getId())) {
-                if (turn == 0 && !red.contains(event.getUser())) {
+                if (red.contains(event.getUser()) && turn != 0) {
                     event.deferEdit().queue();
                     return;
                 }
-                if (turn == 1 && !blue.contains(event.getUser())) {
+                if (blue.contains(event.getUser()) && turn != 1) {
+                    event.deferEdit().queue();
+                    return;
+                }
+                if (!red.contains(event.getUser()) && !blue.contains(event.getUser())) {
                     event.deferEdit().queue();
                     return;
                 }
 
+                System.out.println("Turn: " + turn);
                 if (button.getStyle().equals(ButtonStyle.DANGER)) {
                     event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.DANGER)).queue();
                     redRemaining--;
                     event.getMessage().editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + "```").queue();
                     if (redRemaining == 0) {
-                        event.reply("The Red Team has won!").queue();
+                        System.out.println("dwadwadwad");
+                        event.getChannel().sendMessage("The Red Team has won!").queue();
                         running = false;
                         return;
                     }
@@ -204,7 +218,7 @@ public class DiscordBot extends ListenerAdapter {
                     blueRemaining--;
                     event.getMessage().editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + "```").queue();
                     if (blueRemaining == 0) {
-                        event.reply("The Blue Team has won!").queue();
+                        event.getChannel().sendMessage("The Blue Team has won!").queue();
                         running = false;
                         return;
                     }
