@@ -3,11 +3,7 @@ package me.porkypus;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Activity;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
@@ -16,33 +12,14 @@ import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
 import javax.security.auth.login.LoginException;
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 
 public class DiscordBot extends ListenerAdapter {
 
-    boolean running = false;
-    int turn = 0; // 0 is red turn and 1 is blue turn
-    int guesses = 1;
-
-    static List<String> wordList = new ArrayList<>();
-    static List<Button> spymasterButtonList = new ArrayList<>();
-    static List<Button> playerButtonList = new ArrayList<>();
-
-    static List<User> pool = new ArrayList<>();
-    static List<User> spymaster = new ArrayList<>();
-    static List<User> red = new ArrayList<>();
-    static List<User> blue = new ArrayList<>();
-
-    int redRemaining = 9;
-    int blueRemaining = 8;
+    Codenames game = new Codenames();
+    List<Button> spymasterButtonList, playerButtonList;
+    String prefix = "!";
 
     public static void main(String[] args) throws LoginException {
 
@@ -51,198 +28,263 @@ public class DiscordBot extends ListenerAdapter {
                 .setActivity(Activity.playing("Type codies to get started"))
                 .build();
 
+        jda.upsertCommand("join", "Type /join").queue();
         jda.upsertCommand("codies", "Type /codies").queue();
         jda.upsertCommand("start", "Type /start").queue();
-
-        try {
-            BufferedReader br = new BufferedReader(new FileReader("words.txt"));
-            String line;
-            while((line = br.readLine()) != null) {
-                wordList.add(line);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        jda.upsertCommand("stop", "Type /stop").queue();
     }
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
-        if (event.getAuthor().isBot()) {
+        User sender = event.getAuthor();
+        if (sender.isBot()) {
             return;
         }
-        Message msg = event.getMessage();
+        Message userMessage = event.getMessage();
+        String raw = userMessage.getContentRaw();
+        MessageChannel channel = event.getChannel();
 
-        if (msg.getContentRaw().equals("!join")) {
-            msg.delete().queue();
-            if (pool.contains(event.getAuthor())) {
-                event.getChannel().sendMessage("Join only once idiot").queue();
-            } else {
-                    pool.add(event.getAuthor());
+        if (raw.startsWith(prefix)) {
+            String command = raw.replaceFirst(prefix, "").toLowerCase();
+            switch (command){
+                case "codies":
+                    if (game.isRunning()) {
+                        channel.sendMessage("An instance of codies has already been started").queue();
+                    } else {
+                        Guild guild = event.getGuild();
+                        resetGame(guild, channel);
+                    }
+                    break;
+
+                case "join":
+                    joinGame(sender, channel);
+                    break;
+
+                case "start":
+                    Guild guild = event.getGuild();
+                    TextChannel spymastersChannel = guild.getTextChannelsByName("spymasters", true).get(0);
+                    startGame(spymastersChannel, event.getChannel());
+                    break;
+
+                case "stop":
+                    game.stop();
+                    channel.sendMessage("Game was stopped").queue();
+                    break;
+
+                case "cw":
+                    String wordString = command.replaceFirst("cw", "").toLowerCase();
+                    game.addCustomWords(wordString);
+                    break;
             }
         }
     }
 
-
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
-        if (event.getName().equals("codies")) {
-            if (running) {
-                event.reply("An instance of codies has already been started").queue();
-                return;
-            }
-            running = true;
-            pool = new ArrayList<>();
-            spymaster = new ArrayList<>();
-            red = new ArrayList<>();
-            blue = new ArrayList<>();
+        User user = event.getUser();
+        MessageChannel channel = event.getChannel();
+        String command = event.getName();
 
-            event.reply("```Spymasters: " + spymaster + "\nRed: " + red + "\nBlue: " + blue + "```")
-                    .addActionRow(Button.primary("random", "Randomise Teams"))
-                    .queue();
-        }
+        Guild guild = event.getGuild();
+        assert guild != null;
+        TextChannel spymastersChannel = guild.getTextChannelsByName("spymasters", true).get(0);
 
-        if (event.getName().equals("start")) {
-            if (!running) {
-                event.reply("```Please initiate teams using /codies first").queue();
-            } else {
-                turn = 0;
-                redRemaining = 9;
-                blueRemaining = 8;
-
-                spymasterButtonList = new ArrayList<>();
-                playerButtonList = new ArrayList<>();
-
-                Guild guild = event.getGuild();
-                assert guild != null;
-                TextChannel textChannel = guild.getTextChannelsByName("spymasters", true).get(0);
-
-                Collections.shuffle(wordList);
-
-                for (int i = 0; i < 25; i++) {
-                    if (i < 8) {
-                        spymasterButtonList.add(Button.primary(wordList.get(i), wordList.get(i)).asDisabled());
-                    } else if (i < 17) {
-                        spymasterButtonList.add(Button.danger(wordList.get(i), wordList.get(i)).asDisabled());
-                    } else {
-                        spymasterButtonList.add(Button.secondary(wordList.get(i), wordList.get(i)).asDisabled());
-                    }
+        switch (command){
+            case "codies":
+                if (game.isRunning()) {
+                    event.reply("An instance of codies has already been started").queue();
+                } else {
+                    List<ActionRow> actionRows =  resetGame(guild, channel);
+                    event.reply("Teams: ").addActionRows(actionRows).queue();
                 }
+                break;
 
-                Collections.shuffle(spymasterButtonList);
+            case "join":
+                joinGame(user, channel);
+                event.deferReply().queue();
+                break;
 
-                for (Button button : spymasterButtonList) {
-                    playerButtonList.add(Button.success(button.getId() + "x", button.getLabel()));
-                }
+            case "start":
+                startGame(spymastersChannel, event.getChannel());
+                event.deferReply().queue();
+                break;
 
-
-                List<ActionRow> actionRows = new ArrayList<>();
-                actionRows.add(ActionRow.of(spymasterButtonList.subList(0, 5)));
-                actionRows.add(ActionRow.of(spymasterButtonList.subList(5, 10)));
-                actionRows.add(ActionRow.of(spymasterButtonList.subList(10, 15)));
-                actionRows.add(ActionRow.of(spymasterButtonList.subList(15, 20)));
-                actionRows.add(ActionRow.of(spymasterButtonList.subList(20, 25)));
-
-                textChannel.sendMessage("True Layout")
-                        .setActionRows(actionRows)
-                        .queue();
-
-                event.reply("```Red: " + redRemaining + " Blue: " + blueRemaining + "```")
-                        .addActionRow(
-                                playerButtonList.subList(0, 5))
-                        .addActionRow(
-                                playerButtonList.subList(5, 10))
-                        .addActionRow(
-                                playerButtonList.subList(10, 15))
-                        .addActionRow(
-                                playerButtonList.subList(15, 20))
-                        .addActionRow(
-                                playerButtonList.subList(20, 25))
-                        .queue();
-            }
+            case "stop":
+                game.stop();
+                event.reply("Game was stopped").queue();
+                break;
         }
     }
 
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
+        MessageChannel channel = event.getChannel();
+        Message botMessage = event.getMessage();
+        User user = event.getUser();
 
-        if (Objects.equals(event.getButton().getId(), "random")) {
-            if (pool.size() < 4) {
-                event.getChannel().sendMessage("```More than 3 players are required```").queue();
+        String buttonId = event.getComponentId();
+        Button button = event.getButton();
+        ButtonStyle style = button.getStyle();
+        String styleString = style.toString();
+
+        Guild guild = event.getGuild();
+        assert guild != null;
+        TextChannel spymastersChannel = guild.getTextChannelsByName("spymasters", true).get(0);
+
+        //Button to join
+        if (buttonId.equals("join")) {
+            joinGame(user, channel);
+            event.deferEdit().queue();
+        }
+
+        //Button to start game
+        else if (buttonId.equals("start")) {
+            startGame(spymastersChannel, event.getChannel());
+        }
+
+        //Buttons to choose word sets
+        else if (buttonId.startsWith("wordset")){
+            ButtonStyle newStyle = style.equals(ButtonStyle.SECONDARY)? ButtonStyle.SUCCESS : ButtonStyle.SECONDARY;
+            game.editWordset(button.getLabel(), newStyle);
+            event.editButton(button.withStyle(newStyle)).complete();
+        }
+
+        //Button to randomise
+        else if (buttonId.equals("random")) {
+            if (game.getPlayers().size() < 4) {
+                channel.sendMessage("```More than 3 players are required```").queue();
+                event.deferEdit().complete();
+                return;
+            }
+            String outMessage = game.randomisePlayers();
+            for (User spymaster : game.getSpymasters()) {
+                guild.addRoleToMember(Objects.requireNonNull(guild.getMember(spymaster)), guild.getRolesByName("spymaster", true).get(0)).queue();
+            }
+            botMessage.editMessage(outMessage).complete();
+        }
+
+        //Game Buttons
+        else if(game.checkPlayerButton(buttonId)) {
+            //Check if player
+            if (!game.getGuessers().contains(user)){
                 event.deferEdit().queue();
-                return;
-            }
-            Collections.shuffle(pool);
-            for (int i = 0; i < pool.size();i++) {
-                if (i < 2) {
-                    spymaster.add(pool.get(i));
-                }
-                else if (i < ((pool.size() - 2) / 2) + 2) {
-                    red.add(pool.get(i));
-                }
-                else {
-                    blue.add(pool.get(i));
-                }
-            }
-            TextChannel textChannel = Objects.requireNonNull(event.getGuild()).getTextChannelsByName("spymasters", true).get(0);
-            textChannel.createPermissionOverride(event.getGuild().getPublicRole()).setDeny(Permission.VIEW_CHANNEL).queue();
-            for (User user : spymaster) {
-                textChannel.createPermissionOverride(Objects.requireNonNull(event.getGuild().getMember(user))).setAllow(Permission.VIEW_CHANNEL).queue();
-            }
-            event.getMessage().editMessage("Spymasters: " + spymaster + "\nRed: " + red + "\nBlue: " + blue).complete();
-            event.editButton(event.getButton().asDisabled()).submit();
-        }
+            } else {
+                //Change the button colour
+                ButtonStyle trueStyle = game.getButtonStyle(buttonId);
+                event.editButton(button.asDisabled().withStyle(trueStyle)).complete();
 
-        for (Button button : spymasterButtonList) {
-            if (!running) {
-                event.reply("The game has finished!").queue();
-                return;
-            }
-            if ((button.getId() + "x").equals(event.getButton().getId())) {
-                if (red.contains(event.getUser()) && turn != 0) {
-                    event.deferEdit().complete();
-                    return;
-                }
-                if (blue.contains(event.getUser()) && turn != 1) {
-                    event.deferEdit().complete();
-                    return;
-                }
-                if (!red.contains(event.getUser()) && !blue.contains(event.getUser())) {
-                    event.deferEdit().complete();
-                    return;
-                }
+                //Update score
+                boolean gameEnd = game.decrementScore(styleString);
+                Hashtable<String, Integer> scores = game.getScores();
+                int redRemaining = scores.get("DANGER");
+                int blueRemaining = scores.get("PRIMARY");
+                botMessage.editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + "```").complete();
 
-                if (button.getStyle().equals(ButtonStyle.DANGER)) {
-                    event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.DANGER)).complete();
-                    redRemaining--;
-                    event.getMessage().editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + "```").complete();
-                    if (redRemaining == 0) {
-                        event.getChannel().sendMessage("The Red Team has won!").queue();
-                        running = false;
-                        return;
-                    }
-                }
-
-                if (button.getStyle().equals(ButtonStyle.PRIMARY)) {
-                    event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.PRIMARY)).complete();
-                    blueRemaining--;
-                    event.getMessage().editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + "```").complete();
-                    if (blueRemaining == 0) {
-                        event.getChannel().sendMessage("The Blue Team has won!").queue();
-                        running = false;
-                        return;
-                    }
-                }
-
-                if (button.getStyle().equals(ButtonStyle.SECONDARY)) {
-                    event.editButton(event.getButton().asDisabled().withStyle(ButtonStyle.SECONDARY)).complete();
+                //Check if end game or change turn
+                String turn = game.getTurn();
+                if (gameEnd){
+                    String losingTeam = redRemaining == 0 ? "Blue team" : "Red team";
+                    channel.sendMessage(losingTeam + "got rekt" ).queue();
+                } else if (!styleString.equals(turn) || styleString.equals("SECONDARY")){
+                    game.changeTurn();
                 }
             }
         }
-        guesses--;
-        if (guesses == 0) {
-            if (turn == 0) turn = 1;
-            else turn = 0;
-            guesses = 1;
+
+        //wtf was that button
+        else{
+            event.deferEdit().queue();
         }
+    }
+
+    /**
+     * Setups and starts game
+     */
+    public void startGame(TextChannel spymastersChannel, MessageChannel playersChannel){
+        if(!game.isReady()){
+            playersChannel.sendMessage("You didn't set the teams you uncultured swine").queue();
+        }
+        else {
+            //Set permissions for spymaster channel
+
+            //Generate words
+            Hashtable<String,ButtonStyle> wordsInGame = game.start();
+
+            //Create Lists of Buttons for spymaster and shuffle
+            for(String word: wordsInGame.keySet()){
+                ButtonStyle style = wordsInGame.get(word);
+                Button button = Button.of(style,  word, word);
+                spymasterButtonList.add(button.asDisabled());
+            }
+            Collections.shuffle(spymasterButtonList);
+            //Create List of buttons for players
+            for (Button button : spymasterButtonList) {
+                playerButtonList.add(Button.success("playerButton" + button.getId(), button.getLabel()));
+            }
+
+            //Create Action Rows
+            List<ActionRow> spymasterActionRows = new ArrayList<>();
+            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(0, 5)));
+            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(5, 10)));
+            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(10, 15)));
+            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(15, 20)));
+            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(20, 25)));
+
+            List<ActionRow> playerActionRows = new ArrayList<>();
+            playerActionRows.add(ActionRow.of(playerButtonList.subList(0, 5)));
+            playerActionRows.add(ActionRow.of(playerButtonList.subList(5, 10)));
+            playerActionRows.add(ActionRow.of(playerButtonList.subList(10, 15)));
+            playerActionRows.add(ActionRow.of(playerButtonList.subList(15, 20)));
+            playerActionRows.add(ActionRow.of(playerButtonList.subList(20, 25)));
+
+            //Send Messages in corresponding Channels
+            spymastersChannel.sendMessage("True Layout")
+                    .setActionRows(spymasterActionRows)
+                    .queue();
+
+            playersChannel.sendMessage("Score:")
+                    .setActionRows(playerActionRows)
+                    .queue();
+        }
+    }
+
+    /**
+     * Adds user to player list
+     * @param user User to add
+     * @param channel Channel to send error message
+     */
+    public void joinGame(User user, MessageChannel channel){
+        List<User> players = game.getPlayers();
+        if (players.contains(user)) {
+            channel.sendMessage("Join only once idiot").queue();
+        } else {
+            game.addPlayer(user);
+        }
+    }
+
+    /**
+     * Creates a new instance of the game
+     * @param channel Channel to send initial message
+     */
+    public List<ActionRow> resetGame(Guild guild, MessageChannel channel){
+        game.resetGame();
+        for (User spymaster : game.getSpymasters()) {
+            guild.removeRoleFromMember(Objects.requireNonNull(guild.getMember(spymaster)), guild.getRolesByName("spymaster", true).get(0)).queue();
+        }
+        spymasterButtonList =  new ArrayList<>();
+        playerButtonList = new ArrayList<>();
+        List<ActionRow> actionRows = new ArrayList<>();
+        actionRows.add(ActionRow.of(
+                (Button.success("wordsetCodenames", "Codenames")),
+                (Button.secondary("wordsetUndercover", "Undercover")),
+                (Button.secondary("wordsetDuet", "Duet"))
+        ));
+        actionRows.add(ActionRow.of(
+                (Button.primary("join", "Join Game")),
+                (Button.success("random", "Randomise Teams")),
+                (Button.success("start", "Start Game"))
+        ));
+
+        return actionRows;
     }
 }
