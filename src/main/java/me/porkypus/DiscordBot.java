@@ -2,7 +2,6 @@ package me.porkypus;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
-import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -106,7 +105,7 @@ public class DiscordBot extends ListenerAdapter {
 
             case "start":
                 startGame(spymastersChannel, event.getChannel());
-                event.deferReply().queue();
+                event.reply("The game has started!").queue();
                 break;
 
             case "stop":
@@ -134,7 +133,7 @@ public class DiscordBot extends ListenerAdapter {
         //Button to join
         if (buttonId.equals("join")) {
             joinGame(user, channel);
-            event.deferEdit().queue();
+            event.editMessage("Teams: " + game.getNames()).complete();
         }
 
         //Button to start game
@@ -157,10 +156,16 @@ public class DiscordBot extends ListenerAdapter {
                 return;
             }
             String outMessage = game.randomisePlayers();
+            for (Member spymaster : guild.getMembersWithRoles(guild.getRolesByName("spymaster", true).get(0))) {
+                guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).queue();
+            }
+            System.out.println("Spymasters: " + game.getSpymasters());
             for (User spymaster : game.getSpymasters()) {
+                System.out.println(guild.getMember(spymaster));
                 guild.addRoleToMember(Objects.requireNonNull(guild.getMember(spymaster)), guild.getRolesByName("spymaster", true).get(0)).queue();
             }
-            botMessage.editMessage(outMessage).complete();
+            System.out.println(" ");
+            event.editMessage(outMessage).complete();
         }
 
         //Game Buttons
@@ -191,7 +196,6 @@ public class DiscordBot extends ListenerAdapter {
             }
         }
 
-        //wtf was that button
         else{
             event.deferEdit().queue();
         }
@@ -268,9 +272,10 @@ public class DiscordBot extends ListenerAdapter {
      */
     public List<ActionRow> resetGame(Guild guild, MessageChannel channel){
         game.resetGame();
-        for (User spymaster : game.getSpymasters()) {
-            guild.removeRoleFromMember(Objects.requireNonNull(guild.getMember(spymaster)), guild.getRolesByName("spymaster", true).get(0)).queue();
+        for (Member spymaster : guild.getMembersWithRoles(guild.getRolesByName("spymaster", true).get(0))) {
+            guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).queue();
         }
+
         spymasterButtonList =  new ArrayList<>();
         playerButtonList = new ArrayList<>();
         List<ActionRow> actionRows = new ArrayList<>();

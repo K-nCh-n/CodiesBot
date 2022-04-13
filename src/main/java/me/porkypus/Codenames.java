@@ -37,6 +37,14 @@ public class Codenames {
         return spymaster;
     }
 
+    public List<String> getNames() {
+        List<String> names = new ArrayList<>();
+        for (User user : players) {
+            names.add(user.getName());
+        }
+        return names;
+    }
+
     /**
      * Updates the wordlist according to the sets chosen
      */
@@ -204,7 +212,21 @@ public class Codenames {
             }
         }
         ready = true;
-        return "Spymasters: " + spymaster + "\nRed: " + red + "\nBlue: " + blue;
+
+        List<String> spymasterNames = new ArrayList<>();
+        List<String> redNames = new ArrayList<>();
+        List<String> blueNames = new ArrayList<>();
+
+        for (User user : spymaster) {
+            spymasterNames.add(user.getName());
+        }
+        for (User user : red) {
+            redNames.add(user.getName());
+        }
+        for (User user : blue) {
+            blueNames.add(user.getName());
+        }
+        return "```Spymasters: " + spymasterNames + "\nRed: " + redNames + "\nBlue: " + blueNames + "```";
     }
 
     public boolean isReady() {
