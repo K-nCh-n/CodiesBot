@@ -2,6 +2,7 @@ package me.porkypus;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -82,12 +83,18 @@ public class DiscordBot extends ListenerAdapter {
         User user = event.getUser();
         MessageChannel channel = event.getChannel();
         String command = event.getName();
+
+        Guild guild = event.getGuild();
+        assert guild != null;
+        TextChannel spymastersChannel = guild.getTextChannelsByName("spymasters", true).get(0);
+
         switch (command){
             case "codies":
                 if (game.isRunning()) {
                     channel.sendMessage("An instance of codies has already been started").queue();
                 } else {
                     resetGame(channel);
+                    spymastersChannel.upsertPermissionOverride(guild.getPublicRole()).deny(Permission.VIEW_CHANNEL).queue();
                 }
                 break;
 
@@ -96,9 +103,6 @@ public class DiscordBot extends ListenerAdapter {
                 break;
 
             case "start":
-                Guild guild = event.getGuild();
-                assert guild != null;
-                TextChannel spymastersChannel = guild.getTextChannelsByName("spymasters", true).get(0);
                 startGame(spymastersChannel, event.getChannel());
                 break;
 
@@ -120,6 +124,10 @@ public class DiscordBot extends ListenerAdapter {
         ButtonStyle style = button.getStyle();
         String styleString = style.toString();
 
+        Guild guild = event.getGuild();
+        assert guild != null;
+        TextChannel spymastersChannel = guild.getTextChannelsByName("spymasters", true).get(0);
+
         //Button to join
         if (buttonId.equals("join")) {
             joinGame(user, channel);
@@ -128,9 +136,6 @@ public class DiscordBot extends ListenerAdapter {
 
         //Button to start game
         else if (buttonId.equals("start")) {
-            Guild guild = event.getGuild();
-            assert guild != null;
-            TextChannel spymastersChannel = guild.getTextChannelsByName("spymasters", true).get(0);
             startGame(spymastersChannel, event.getChannel());
         }
 
@@ -149,6 +154,11 @@ public class DiscordBot extends ListenerAdapter {
                 return;
             }
             String outMessage = game.randomisePlayers();
+            for (User spymaster : game.getSpymasters()) {
+                IPermissionHolder iPermissionHolder = guild.getMember(spymaster);
+                assert iPermissionHolder != null;
+                spymastersChannel.upsertPermissionOverride(iPermissionHolder).grant(Permission.VIEW_CHANNEL).queue();
+            }
             botMessage.editMessage(outMessage).complete();
         }
 
@@ -194,6 +204,8 @@ public class DiscordBot extends ListenerAdapter {
             playersChannel.sendMessage("Please set the teams before starting the game").queue();
         }
         else {
+            //Set permissions for spymaster channel
+
             //Generate words
             Hashtable<String,ButtonStyle> wordsInGame = game.start();
 

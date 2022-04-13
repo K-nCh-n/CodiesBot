@@ -32,6 +32,10 @@ public class Codenames {
 
     //WordLists {
 
+    public List<User> getSpymasters() {
+        return spymaster;
+    }
+
     /**
      * Updates the wordlist according to the sets chosen
      */
