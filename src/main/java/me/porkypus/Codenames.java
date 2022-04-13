@@ -23,6 +23,7 @@ public class Codenames {
         wordList = new ArrayList<>();
         wordSets = new Hashtable<>();
         wordsInGame = new Hashtable<>();
+        scores = new Hashtable<>();
 
         players = new ArrayList<>();
         spymaster = new ArrayList<>();

@@ -51,7 +51,8 @@ public class DiscordBot extends ListenerAdapter {
                     if (game.isRunning()) {
                         channel.sendMessage("An instance of codies has already been started").queue();
                     } else {
-                        resetGame(channel);
+                        Guild guild = event.getGuild();
+                        resetGame(guild, channel);
                     }
                     break;
 
@@ -91,24 +92,26 @@ public class DiscordBot extends ListenerAdapter {
         switch (command){
             case "codies":
                 if (game.isRunning()) {
-                    channel.sendMessage("An instance of codies has already been started").queue();
+                    event.reply("An instance of codies has already been started").queue();
                 } else {
-                    resetGame(channel);
-                    spymastersChannel.upsertPermissionOverride(guild.getPublicRole()).deny(Permission.VIEW_CHANNEL).queue();
+                    List<ActionRow> actionRows =  resetGame(guild, channel);
+                    event.reply("Teams: ").addActionRows(actionRows).queue();
                 }
                 break;
 
             case "join":
                 joinGame(user, channel);
+                event.deferReply().queue();
                 break;
 
             case "start":
                 startGame(spymastersChannel, event.getChannel());
+                event.deferReply().queue();
                 break;
 
             case "stop":
                 game.stop();
-                channel.sendMessage("Game was stopped").queue();
+                event.reply("Game was stopped").queue();
                 break;
         }
     }
@@ -155,9 +158,7 @@ public class DiscordBot extends ListenerAdapter {
             }
             String outMessage = game.randomisePlayers();
             for (User spymaster : game.getSpymasters()) {
-                IPermissionHolder iPermissionHolder = guild.getMember(spymaster);
-                assert iPermissionHolder != null;
-                spymastersChannel.upsertPermissionOverride(iPermissionHolder).grant(Permission.VIEW_CHANNEL).queue();
+                guild.addRoleToMember(Objects.requireNonNull(guild.getMember(spymaster)), guild.getRolesByName("spymaster", true).get(0)).queue();
             }
             botMessage.editMessage(outMessage).complete();
         }
@@ -182,8 +183,8 @@ public class DiscordBot extends ListenerAdapter {
                 //Check if end game or change turn
                 String turn = game.getTurn();
                 if (gameEnd){
-                    String winningTeam = redRemaining == 0 ? "Blue team" : "Red team";
-                    channel.sendMessage(winningTeam + "got rekt" ).queue();
+                    String losingTeam = redRemaining == 0 ? "Blue team" : "Red team";
+                    channel.sendMessage(losingTeam + "got rekt" ).queue();
                 } else if (!styleString.equals(turn) || styleString.equals("SECONDARY")){
                     game.changeTurn();
                 }
@@ -201,7 +202,7 @@ public class DiscordBot extends ListenerAdapter {
      */
     public void startGame(TextChannel spymastersChannel, MessageChannel playersChannel){
         if(!game.isReady()){
-            playersChannel.sendMessage("Please set the teams before starting the game").queue();
+            playersChannel.sendMessage("You didn't set the teams you uncultured swine").queue();
         }
         else {
             //Set permissions for spymaster channel
@@ -265,8 +266,11 @@ public class DiscordBot extends ListenerAdapter {
      * Creates a new instance of the game
      * @param channel Channel to send initial message
      */
-    public void resetGame(MessageChannel channel){
+    public List<ActionRow> resetGame(Guild guild, MessageChannel channel){
         game.resetGame();
+        for (User spymaster : game.getSpymasters()) {
+            guild.removeRoleFromMember(Objects.requireNonNull(guild.getMember(spymaster)), guild.getRolesByName("spymaster", true).get(0)).queue();
+        }
         spymasterButtonList =  new ArrayList<>();
         playerButtonList = new ArrayList<>();
         List<ActionRow> actionRows = new ArrayList<>();
@@ -280,7 +284,7 @@ public class DiscordBot extends ListenerAdapter {
                 (Button.success("random", "Randomise Teams")),
                 (Button.success("start", "Start Game"))
         ));
-        channel.sendMessage("Teams:")
-                .setActionRows(actionRows).queue();
+
+        return actionRows;
     }
 }
