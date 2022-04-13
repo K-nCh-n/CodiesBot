@@ -10,6 +10,10 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
+import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.ChunkingFilter;
+import net.dv8tion.jda.api.utils.MemberCachePolicy;
+
 import javax.security.auth.login.LoginException;
 import java.util.*;
 
@@ -25,6 +29,9 @@ public class DiscordBot extends ListenerAdapter {
         JDA jda = JDABuilder.createDefault(System.getenv("DISCORD_TOKEN"))
                 .addEventListeners(new DiscordBot())
                 .setActivity(Activity.playing("Type codies to get started"))
+                //.setChunkingFilter(ChunkingFilter.ALL) // enable member chunking for all guilds
+                //.setMemberCachePolicy(MemberCachePolicy.ALL) // ignored if chunking enabled
+                //.enableIntents(GatewayIntent.GUILD_MEMBERS)
                 .build();
 
         jda.upsertCommand("join", "Type /join").queue();
