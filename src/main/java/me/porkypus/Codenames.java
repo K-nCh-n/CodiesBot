@@ -47,11 +47,16 @@ public class Codenames {
         return names;
     }
 
+    public HashMap<String, ButtonStyle> getWordSets() {
+        return wordSets;
+    }
+
     //WordLists {
     /**
      * Updates the wordlist according to the sets chosen
      */
         public void updateWordlist(){
+            wordList.clear();
             for (String wordSet: wordSets.keySet()) {
                 if (wordSets.get(wordSet).equals(ButtonStyle.SUCCESS)){
                     try {

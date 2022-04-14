@@ -29,9 +29,9 @@ public class DiscordBot extends ListenerAdapter {
         JDA jda = JDABuilder.createDefault(System.getenv("DISCORD_TOKEN"))
                 .addEventListeners(new DiscordBot())
                 .setActivity(Activity.playing("Type codies to get started"))
-                /*.setChunkingFilter(ChunkingFilter.ALL)
+                .setChunkingFilter(ChunkingFilter.ALL)
                 .setMemberCachePolicy(MemberCachePolicy.ALL)
-                .enableIntents(GatewayIntent.GUILD_MEMBERS)*/
+                .enableIntents(GatewayIntent.GUILD_MEMBERS)
                 .build();
 
         jda.upsertCommand("join", "Type /join").queue();
@@ -88,13 +88,8 @@ public class DiscordBot extends ListenerAdapter {
 
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
-        User user = event.getUser();
         MessageChannel channel = event.getChannel();
         String command = event.getName();
-
-        Guild guild = event.getGuild();
-        assert guild != null;
-        TextChannel spymastersChannel = guild.getTextChannelsByName("spymasters", true).get(0);
 
         switch (command){
             case "codies":
@@ -102,18 +97,9 @@ public class DiscordBot extends ListenerAdapter {
                     event.reply("An instance of codies has already been started").queue();
                 } else {
                     List<ActionRow> actionRows =  resetGame(channel);
+                    game.initialiseGame();
                     event.reply("```Lobby: ```").addActionRows(actionRows).queue();
                 }
-                break;
-
-            case "join":
-                game.addPlayer(user);
-                event.deferReply().queue();
-                break;
-
-            case "start":
-                startGame(guild, spymastersChannel, event.getChannel());
-                event.reply("The game has started!").queue();
                 break;
 
             case "stop":
@@ -135,6 +121,10 @@ public class DiscordBot extends ListenerAdapter {
         String styleString = style.toString();
         ButtonStyle trueStyle = game.getButtonStyle(buttonId);
 
+        HashMap<String, Integer> scores = game.getScores();
+        int redRemaining = scores.get("DANGER");
+        int blueRemaining = scores.get("PRIMARY");
+
         Guild guild = event.getGuild();
         assert guild != null;
         TextChannel spymastersChannel = guild.getTextChannelsByName("spymasters", true).get(0);
@@ -148,7 +138,13 @@ public class DiscordBot extends ListenerAdapter {
         //Button to start game
         else if (buttonId.equals("start")) {
             startGame(guild, spymastersChannel, event.getChannel());
-            event.editComponents().setActionRows().queue();
+            Button passButton;
+            if (game.getTurn().equals("DANGER")){
+                passButton = Button.danger("pass", "Pass");
+            } else {
+                passButton = Button.primary("pass", "Pass");
+            }
+            event.editComponents().setActionRow(passButton).queue();
         }
 
         //Buttons to choose word sets
@@ -156,6 +152,17 @@ public class DiscordBot extends ListenerAdapter {
             ButtonStyle newStyle = style.equals(ButtonStyle.SECONDARY)? ButtonStyle.SUCCESS : ButtonStyle.SECONDARY;
             game.editWordset(button.getLabel(), newStyle);
             event.editButton(button.withStyle(newStyle)).complete();
+        }
+
+        else if (buttonId.startsWith("pass")) {
+            if (game.getRed().contains(user) && !game.getTurn().equals("DANGER")) {
+                event.deferEdit().queue();
+            } else if (game.getBlue().contains(user) && !game.getTurn().equals("PRIMARY")) {
+                event.deferEdit().queue();
+            } else {
+                game.changeTurn();
+                event.editButton(button.withStyle(game.getTurn().equals("DANGER") ? ButtonStyle.PRIMARY : ButtonStyle.DANGER)).complete();
+            }
         }
 
         //Button to randomise
@@ -177,11 +184,6 @@ public class DiscordBot extends ListenerAdapter {
         }
 
         else if(trueStyle == null) {
-            System.out.println("wa");
-            HashMap<String, Integer> scores = game.getScores();
-            int redRemaining = scores.get("DANGER");
-            int blueRemaining = scores.get("PRIMARY");
-
             List<ActionRow> spymasterActionRows = new ArrayList<>();
             spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(0, 5)));
             spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(5, 10)));
@@ -209,9 +211,6 @@ public class DiscordBot extends ListenerAdapter {
 
                 //Update score
                 boolean gameEnd = game.decrementScore(trueStyle.toString());
-                HashMap<String, Integer> scores = game.getScores();
-                int redRemaining = scores.get("DANGER");
-                int blueRemaining = scores.get("PRIMARY");
 
                 //Check if end game or change turn
                 String turn = game.getTurn();
