@@ -29,9 +29,9 @@ public class DiscordBot extends ListenerAdapter {
         JDA jda = JDABuilder.createDefault(System.getenv("DISCORD_TOKEN"))
                 .addEventListeners(new DiscordBot())
                 .setActivity(Activity.playing("Type codies to get started"))
-                .setChunkingFilter(ChunkingFilter.ALL)
+                /*.setChunkingFilter(ChunkingFilter.ALL)
                 .setMemberCachePolicy(MemberCachePolicy.ALL)
-                .enableIntents(GatewayIntent.GUILD_MEMBERS)
+                .enableIntents(GatewayIntent.GUILD_MEMBERS)*/
                 .build();
 
         jda.upsertCommand("join", "Type /join").queue();
@@ -53,34 +53,35 @@ public class DiscordBot extends ListenerAdapter {
         if (raw.startsWith(prefix)) {
             String command = raw.replaceFirst(prefix, "").toLowerCase();
             switch (command){
-                case "codies":
-                    if (game.isRunning()) {
-                        channel.sendMessage("An instance of codies has already been started").queue();
+                case "cw":
+                    String wordString = command.replaceFirst("cw", "").toLowerCase();
+                    if(wordString.isBlank()){
+                        channel.sendMessage("```Custom Words: \n" + game.getCustomWords() + "```").queue();
                     } else {
-                        Guild guild = event.getGuild();
-                        resetGame(guild, channel);
+                        game.setCustomWords(wordString);
                     }
                     break;
 
-                case "join":
-                    joinGame(sender, channel);
-                    break;
+                case "ccw":
+                    game.setCustomWords("");
 
-                case "start":
-                    Guild guild = event.getGuild();
-                    TextChannel spymastersChannel = guild.getTextChannelsByName("spymasters", true).get(0);
-                    startGame(spymastersChannel, event.getChannel());
-                    break;
-
-                case "stop":
-                    game.stop();
-                    channel.sendMessage("Game was stopped").queue();
-                    break;
-
-                case "cw":
-                    String wordString = command.replaceFirst("cw", "").toLowerCase();
-                    game.addCustomWords(wordString);
-                    break;
+                case "wl":
+                    HashSet<String> wordlist = game.getWordList();
+                    channel.sendMessage("```Wordlist: ```").queue();
+                    ArrayList<String> outMessages = new ArrayList<>();
+                    String outMessage = "```";
+                    int i = 0;
+                    for (String word : wordlist) {
+                        outMessage = outMessage + " " + word;
+                        if (outMessage.length() > 1990) {
+                            outMessages.add(outMessage + "```");
+                            outMessage = "```";
+                            i++;
+                        }
+                    }
+                    for (String s:outMessages) {
+                        channel.sendMessage(s).queue();
+                    }
             }
         }
     }
@@ -100,18 +101,18 @@ public class DiscordBot extends ListenerAdapter {
                 if (game.isRunning()) {
                     event.reply("An instance of codies has already been started").queue();
                 } else {
-                    List<ActionRow> actionRows =  resetGame(guild, channel);
+                    List<ActionRow> actionRows =  resetGame(channel);
                     event.reply("```Lobby: ```").addActionRows(actionRows).queue();
                 }
                 break;
 
             case "join":
-                joinGame(user, channel);
+                game.addPlayer(user);
                 event.deferReply().queue();
                 break;
 
             case "start":
-                startGame(spymastersChannel, event.getChannel());
+                startGame(guild, spymastersChannel, event.getChannel());
                 event.reply("The game has started!").queue();
                 break;
 
@@ -140,13 +141,13 @@ public class DiscordBot extends ListenerAdapter {
 
         //Button to join
         if (buttonId.equals("join")) {
-            joinGame(user, channel);
+            game.addPlayer(user);
             event.editMessage("```Lobby: " + game.getNames() + "```").complete();
         }
 
         //Button to start game
         else if (buttonId.equals("start")) {
-            startGame(spymastersChannel, event.getChannel());
+            startGame(guild, spymastersChannel, event.getChannel());
             event.editComponents().setActionRows().queue();
         }
 
@@ -231,15 +232,20 @@ public class DiscordBot extends ListenerAdapter {
     /**
      * Setups and starts game
      */
-    public void startGame(TextChannel spymastersChannel, MessageChannel playersChannel){
+    public void startGame(Guild guild, TextChannel spymastersChannel, MessageChannel playersChannel){
         if(!game.isReady()){
             playersChannel.sendMessage("```You didn't set the teams you uncultured swine```").queue();
         }
         else {
             //Set permissions for spymaster channel
+            for (Member spymaster : guild.getMembersWithRoles(guild.getRolesByName("spymaster", true).get(0))) {
+                guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).queue();
+            }
 
             //Generate words
             HashMap<String,ButtonStyle> wordsInGame = game.start();
+            spymasterButtonList.clear();
+            playerButtonList.clear();
 
             //Create Lists of Buttons for spymaster and shuffle
             for(String word: wordsInGame.keySet()){
@@ -286,29 +292,11 @@ public class DiscordBot extends ListenerAdapter {
     }
 
     /**
-     * Adds user to player list
-     * @param user User to add
-     * @param channel Channel to send error message
-     */
-    public void joinGame(User user, MessageChannel channel){
-        List<User> players = game.getPlayers();
-        if (players.contains(user)) {
-            channel.sendMessage("```Join only once idiot```").queue();
-        } else {
-            game.addPlayer(user);
-        }
-    }
-
-    /**
      * Creates a new instance of the game
      * @param channel Channel to send initial message
      */
-    public List<ActionRow> resetGame(Guild guild, MessageChannel channel){
+    public List<ActionRow> resetGame(MessageChannel channel){
         game.resetGame();
-        for (Member spymaster : guild.getMembersWithRoles(guild.getRolesByName("spymaster", true).get(0))) {
-            guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).queue();
-        }
-
         spymasterButtonList =  new ArrayList<>();
         playerButtonList = new ArrayList<>();
         List<ActionRow> actionRows = new ArrayList<>();

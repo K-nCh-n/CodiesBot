@@ -6,41 +6,36 @@ import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 public class Codenames {
-    List<String> wordList;
-    List<User> players, spymaster, red ,blue;
+    HashSet<String> wordList, customWords;
+    HashSet<User> players, spymaster, red ,blue;
     HashMap<String,Integer> scores;
     HashMap<String,ButtonStyle> wordSets, wordsInGame;
     boolean running, ready;
     String turn;
 
     public Codenames(){
-        wordList = new ArrayList<>();
+        wordList = new HashSet<>();
+        customWords = new HashSet<>();
         wordSets = new HashMap<>();
         wordsInGame = new HashMap<>();
         scores = new HashMap<>();
 
-        players = new ArrayList<>();
-        spymaster = new ArrayList<>();
-        red = new ArrayList<>();
-        blue = new ArrayList<>();
+        players = new HashSet<>();
+        spymaster = new HashSet<>();
+        red = new HashSet<>();
+        blue = new HashSet<>();
     }
 
-    //WordLists {
-
-    public List<User> getSpymasters() {
+    public HashSet<User> getSpymasters() {
         return spymaster;
     }
-
-    public List<User> getRed() {
+    public HashSet<User> getRed() {
         return red;
     }
-    public List<User> getBlue() {
+    public HashSet<User> getBlue() {
         return blue;
     }
 
@@ -52,10 +47,11 @@ public class Codenames {
         return names;
     }
 
+    //WordLists {
     /**
      * Updates the wordlist according to the sets chosen
      */
-        public void chooseWordSets(){
+        public void updateWordlist(){
             for (String wordSet: wordSets.keySet()) {
                 if (wordSets.get(wordSet).equals(ButtonStyle.SUCCESS)){
                     try {
@@ -69,6 +65,10 @@ public class Codenames {
                     }
                 }
             }
+            if(wordList.isEmpty()){
+                wordSets.put("Codenames", ButtonStyle.SUCCESS);
+                updateWordlist();
+            }
         }
 
     /**
@@ -81,16 +81,26 @@ public class Codenames {
             wordSets.put(wordset,style);
         }
 
-        public void addCustomWords(String message){
+        public void setCustomWords(String message){
+            customWords.clear();
             try {
-                String[] words = message.split(",");
+                String[] words = message.replaceAll("[^a-zA-Z,]", " ").split(",");
                 for (String word : words) {
                     word =  word.trim();
-                    wordList.add(word);
+                    customWords.add(word);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+
+        public HashSet<String> getCustomWords() {
+            return customWords;
+        }
+
+        public HashSet<String> getWordList() {
+            updateWordlist();
+            return wordList;
         }
     //}
 
@@ -107,6 +117,7 @@ public class Codenames {
         wordSets.put("Undercover", ButtonStyle.SECONDARY);
         wordSets.put("Duet", ButtonStyle.SECONDARY);
         wordList.clear();
+        updateWordlist();
     }
 
     /**
@@ -125,7 +136,8 @@ public class Codenames {
         scores.put("PRIMARY" , 8);
 
         wordsInGame.clear();
-        chooseWordSets();
+        updateWordlist();
+        setCustomWords(customWords.toString());
     }
 
     /**
@@ -134,9 +146,10 @@ public class Codenames {
      */
     public HashMap<String, ButtonStyle> start(){
         initialiseGame();
-        Collections.shuffle(wordList);
-        for (int i = 0; i < 25; i++) {
-            String word = wordList.get(i);
+        Iterator<String> wordIterator = wordList.iterator();
+        int i = 0;
+        while (wordIterator.hasNext() && i<25){
+            String word = wordIterator.next();
             if (i < 8) {
                 wordsInGame.put(word, ButtonStyle.PRIMARY);
             } else if (i < 17) {
@@ -146,6 +159,7 @@ public class Codenames {
             } else {
                 wordsInGame.put(word, ButtonStyle.SECONDARY);
             }
+            i++;
         }
         return wordsInGame;
     }
@@ -177,7 +191,7 @@ public class Codenames {
         return scores;
     }
 
-    public List<User> getPlayers() {
+    public HashSet<User> getPlayers() {
         return players;
     }
 
@@ -212,17 +226,25 @@ public class Codenames {
     }
 
     public String randomisePlayers() {
-        Collections.shuffle(players);
         spymaster.clear();
         red.clear();
         blue.clear();
-        for (int i = 0; i < players.size(); i++) {
-            if (i < 2) {
-                spymaster.add(players.get(i));
-            } else if (i < ((players.size() - 2) / 2) + 2) {
-                red.add(players.get(i));
+        Iterator<User> playerIterator = players.iterator();
+        while (playerIterator.hasNext()) {
+            User player = playerIterator.next();
+            if (spymaster.size() < 2) {
+                spymaster.add(player);
+            } else if (red.size() < blue.size()) {
+                red.add(player);
+            } else if (red.size() > blue.size()){
+                blue.add(player);
             } else {
-                blue.add(players.get(i));
+                Random random = new Random();
+                if (random.nextBoolean()){
+                    red.add(player);
+                } else {
+                    blue.add(player);
+                }
             }
         }
         ready = true;
