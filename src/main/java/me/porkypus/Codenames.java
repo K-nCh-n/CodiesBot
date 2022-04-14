@@ -8,22 +8,22 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.List;
 
 public class Codenames {
     List<String> wordList;
     List<User> players, spymaster, red ,blue;
-    Hashtable<String,Integer> scores;
-    Hashtable<String,ButtonStyle> wordSets, wordsInGame;
+    HashMap<String,Integer> scores;
+    HashMap<String,ButtonStyle> wordSets, wordsInGame;
     boolean running, ready;
     String turn;
 
     public Codenames(){
         wordList = new ArrayList<>();
-        wordSets = new Hashtable<>();
-        wordsInGame = new Hashtable<>();
-        scores = new Hashtable<>();
+        wordSets = new HashMap<>();
+        wordsInGame = new HashMap<>();
+        scores = new HashMap<>();
 
         players = new ArrayList<>();
         spymaster = new ArrayList<>();
@@ -35,6 +35,13 @@ public class Codenames {
 
     public List<User> getSpymasters() {
         return spymaster;
+    }
+
+    public List<User> getRed() {
+        return red;
+    }
+    public List<User> getBlue() {
+        return blue;
     }
 
     public List<String> getNames() {
@@ -95,7 +102,7 @@ public class Codenames {
         running = true;
         players.clear();
 
-        wordSets = new Hashtable<>();
+        wordSets = new HashMap<>();
         wordSets.put("Codenames", ButtonStyle.SUCCESS);
         wordSets.put("Undercover", ButtonStyle.SECONDARY);
         wordSets.put("Duet", ButtonStyle.SECONDARY);
@@ -125,7 +132,7 @@ public class Codenames {
      * Randomises the words to be used in game
      * @return Hashtable of words in game and their buttonStyles
      */
-    public Hashtable<String, ButtonStyle> start(){
+    public HashMap<String, ButtonStyle> start(){
         initialiseGame();
         Collections.shuffle(wordList);
         for (int i = 0; i < 25; i++) {
@@ -134,6 +141,8 @@ public class Codenames {
                 wordsInGame.put(word, ButtonStyle.PRIMARY);
             } else if (i < 17) {
                 wordsInGame.put(word, ButtonStyle.DANGER);
+            } else if (i == 24) {
+                wordsInGame.put(word, ButtonStyle.UNKNOWN);
             } else {
                 wordsInGame.put(word, ButtonStyle.SECONDARY);
             }
@@ -164,7 +173,7 @@ public class Codenames {
         return newScore == 0;
     }
 
-    public Hashtable<String, Integer> getScores() {
+    public HashMap<String, Integer> getScores() {
         return scores;
     }
 
@@ -187,9 +196,14 @@ public class Codenames {
         turn = turn.equals("PRIMARY") ? "DANGER" : "PRIMARY";
     }
 
+    /**
+     *
+     * @param buttonId ID of the pressed button
+     * @return Whether the pressed button corresponds to a button in the true layout
+     */
     public boolean checkPlayerButton(String buttonId){
         String word = buttonId.replaceFirst("playerButton", "");
-        return wordsInGame.contains(word);
+        return wordsInGame.containsKey(word);
     }
 
     public ButtonStyle getButtonStyle(String buttonId){
