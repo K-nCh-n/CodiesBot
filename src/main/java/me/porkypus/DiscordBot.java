@@ -152,7 +152,7 @@ public class DiscordBot extends ListenerAdapter {
 
         //Pass Button
         else if (buttonId.equals("pass")) {
-            if (checkPlayerTurn(user)) {
+            if (!checkPlayerTurn(user)) {
                 event.deferEdit().queue();
             } else {
                 game.changeTurn();
@@ -305,12 +305,12 @@ public class DiscordBot extends ListenerAdapter {
     }
 
     public List<ActionRow> getPlayerActionRows(){
-        List<ActionRow> playerButtonRows = new ArrayList<>();
-        playerButtonRows.add(ActionRow.of(spymasterButtonList.subList(0, 5)));
-        playerButtonRows.add(ActionRow.of(spymasterButtonList.subList(5, 10)));
-        playerButtonRows.add(ActionRow.of(spymasterButtonList.subList(10, 15)));
-        playerButtonRows.add(ActionRow.of(spymasterButtonList.subList(15, 20)));
-        playerButtonRows.add(ActionRow.of(spymasterButtonList.subList(20, 25)));
-        return playerButtonRows;
+        List<ActionRow> playerActionRows = new ArrayList<>();
+        playerActionRows.add(ActionRow.of(playerButtonList.subList(0, 5)));
+        playerActionRows.add(ActionRow.of(playerButtonList.subList(5, 10)));
+        playerActionRows.add(ActionRow.of(playerButtonList.subList(10, 15)));
+        playerActionRows.add(ActionRow.of(playerButtonList.subList(15, 20)));
+        playerActionRows.add(ActionRow.of(playerButtonList.subList(20, 25)));
+        return playerActionRows;
     }
 }
