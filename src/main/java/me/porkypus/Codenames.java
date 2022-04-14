@@ -200,13 +200,6 @@ public class Codenames {
         return players;
     }
 
-    public List<User> getGuessers() {
-        List<User> guessers = new ArrayList<>();
-        guessers.addAll(red);
-        guessers.addAll(blue);
-        return guessers;
-    }
-
     public String getTurn() {
         return turn;
     }

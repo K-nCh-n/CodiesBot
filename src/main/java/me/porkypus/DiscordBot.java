@@ -121,10 +121,6 @@ public class DiscordBot extends ListenerAdapter {
         String styleString = style.toString();
         ButtonStyle trueStyle = game.getButtonStyle(buttonId);
 
-        HashMap<String, Integer> scores = game.getScores();
-        int redRemaining = scores.get("DANGER");
-        int blueRemaining = scores.get("PRIMARY");
-
         Guild guild = event.getGuild();
         assert guild != null;
         TextChannel spymastersChannel = guild.getTextChannelsByName("spymasters", true).get(0);
@@ -154,14 +150,13 @@ public class DiscordBot extends ListenerAdapter {
             event.editButton(button.withStyle(newStyle)).complete();
         }
 
-        else if (buttonId.startsWith("pass")) {
-            if (game.getRed().contains(user) && !game.getTurn().equals("DANGER")) {
-                event.deferEdit().queue();
-            } else if (game.getBlue().contains(user) && !game.getTurn().equals("PRIMARY")) {
+        //Pass Button
+        else if (buttonId.equals("pass")) {
+            if (checkPlayerTurn(user)) {
                 event.deferEdit().queue();
             } else {
                 game.changeTurn();
-                event.editButton(button.withStyle(game.getTurn().equals("DANGER") ? ButtonStyle.PRIMARY : ButtonStyle.DANGER)).complete();
+                event.editButton(button.withStyle(ButtonStyle.valueOf(game.getTurn()))).complete();
             }
         }
 
@@ -176,53 +171,44 @@ public class DiscordBot extends ListenerAdapter {
             for (Member spymaster : guild.getMembersWithRoles(guild.getRolesByName("spymaster", true).get(0))) {
                 guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).complete();
             }
-            for (User spymaster : game.getSpymasters()) {
-                System.out.println(guild.getMember(spymaster));
-                guild.addRoleToMember(Objects.requireNonNull(guild.getMember(spymaster)), guild.getRolesByName("spymaster", true).get(0)).complete();
-            }
             event.editMessage(outMessage).complete();
         }
 
+        //Bomb
         else if(trueStyle == null) {
-            List<ActionRow> spymasterActionRows = new ArrayList<>();
-            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(0, 5)));
-            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(5, 10)));
-            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(10, 15)));
-            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(15, 20)));
-            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(20, 25)));
-
-            event.editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + " Turn: " + (game.getTurn().equals("DANGER") ? "RED" : "BLUE")  + "```")
+            List<ActionRow> spymasterActionRows = getSpymasterActionRows();
+            String oldMessage = event.getMessage().toString();
+            event.editMessage(oldMessage)
                     .setActionRows(spymasterActionRows)
                     .queue();
             game.stop();
         }
+
         //Game Buttons
         else if(game.checkPlayerButton(buttonId)) {
-            //Check if event user is a player
-            if (!game.getGuessers().contains(user)){
-                event.deferEdit().queue();
-            } else if (game.getRed().contains(user) && !game.getTurn().equals("DANGER")) {
-                event.deferEdit().queue();
-            } else if (game.getBlue().contains(user) && !game.getTurn().equals("PRIMARY")) {
+            if (!checkPlayerTurn(user)) {
                 event.deferEdit().queue();
             } else {
-                //Change the button colour
-                event.editButton(button.asDisabled().withStyle(trueStyle)).complete();
+               //Change the button colour
+               event.editButton(button.asDisabled().withStyle(trueStyle)).complete();
 
-                //Update score
-                boolean gameEnd = game.decrementScore(trueStyle.toString());
+               //Update score
+               HashMap<String, Integer> scores = game.getScores();
+               int redRemaining = scores.get("DANGER");
+               int blueRemaining = scores.get("PRIMARY");
+               boolean gameEnd = game.decrementScore(trueStyle.toString());
 
-                //Check if end game or change turn
-                String turn = game.getTurn();
-                if (gameEnd){
-                    String losingTeam = redRemaining == 0 ? "Blue team" : "Red team";
-                    channel.sendMessage("```" + losingTeam + " got rekt```").queue();
-                } else if (!trueStyle.toString().equals(turn) || styleString.equals("SECONDARY")){
-                    game.changeTurn();
-                }
-                botMessage.editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + " Turn: " + (game.getTurn().equals("DANGER") ? "RED" : "BLUE")  + "```").complete();
+               //Check if end game or change turn
+               String turn = game.getTurn();
+               if (gameEnd){
+                   String losingTeam = redRemaining == 0 ? "Blue team" : "Red team";
+                   channel.sendMessage("```" + losingTeam + " got rekt```").queue();
+               }else if (!trueStyle.toString().equals(turn) || styleString.equals("SECONDARY")){
+                   game.changeTurn();
+               }
+               botMessage.editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + " Turn: " + (game.getTurn().equals("DANGER") ? "RED" : "BLUE")  + "```").complete();
             }
-        }
+            }
         else{
             event.deferEdit().queue();
         }
@@ -237,8 +223,8 @@ public class DiscordBot extends ListenerAdapter {
         }
         else {
             //Set permissions for spymaster channel
-            for (Member spymaster : guild.getMembersWithRoles(guild.getRolesByName("spymaster", true).get(0))) {
-                guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).queue();
+            for (User spymaster : game.getSpymasters()) {
+                guild.addRoleToMember(Objects.requireNonNull(guild.getMember(spymaster)), guild.getRolesByName("spymaster", true).get(0)).complete();
             }
 
             //Generate words
@@ -265,19 +251,8 @@ public class DiscordBot extends ListenerAdapter {
             }
 
             //Create Action Rows
-            List<ActionRow> spymasterActionRows = new ArrayList<>();
-            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(0, 5)));
-            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(5, 10)));
-            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(10, 15)));
-            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(15, 20)));
-            spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(20, 25)));
-
-            List<ActionRow> playerActionRows = new ArrayList<>();
-            playerActionRows.add(ActionRow.of(playerButtonList.subList(0, 5)));
-            playerActionRows.add(ActionRow.of(playerButtonList.subList(5, 10)));
-            playerActionRows.add(ActionRow.of(playerButtonList.subList(10, 15)));
-            playerActionRows.add(ActionRow.of(playerButtonList.subList(15, 20)));
-            playerActionRows.add(ActionRow.of(playerButtonList.subList(20, 25)));
+            List<ActionRow> spymasterActionRows = getSpymasterActionRows();
+            List<ActionRow> playerActionRows = getPlayerActionRows();
 
             //Send Messages in corresponding Channels
             spymastersChannel.sendMessage("True Layout")
@@ -311,5 +286,31 @@ public class DiscordBot extends ListenerAdapter {
         ));
 
         return actionRows;
+    }
+
+    public boolean checkPlayerTurn(User user){
+        String turn = game.getTurn();
+        return !((game.getRed().contains(user) && !turn.equals("DANGER")) ||
+        (game.getBlue().contains(user) && !turn.equals("PRIMARY")));
+    }
+
+    public List<ActionRow> getSpymasterActionRows(){
+        List<ActionRow> spymasterActionRows = new ArrayList<>();
+        spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(0, 5)));
+        spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(5, 10)));
+        spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(10, 15)));
+        spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(15, 20)));
+        spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(20, 25)));
+        return spymasterActionRows;
+    }
+
+    public List<ActionRow> getPlayerActionRows(){
+        List<ActionRow> playerButtonRows = new ArrayList<>();
+        playerButtonRows.add(ActionRow.of(spymasterButtonList.subList(0, 5)));
+        playerButtonRows.add(ActionRow.of(spymasterButtonList.subList(5, 10)));
+        playerButtonRows.add(ActionRow.of(spymasterButtonList.subList(10, 15)));
+        playerButtonRows.add(ActionRow.of(spymasterButtonList.subList(15, 20)));
+        playerButtonRows.add(ActionRow.of(spymasterButtonList.subList(20, 25)));
+        return playerButtonRows;
     }
 }
