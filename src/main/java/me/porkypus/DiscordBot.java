@@ -290,8 +290,8 @@ public class DiscordBot extends ListenerAdapter {
 
     public boolean checkPlayerTurn(User user){
         String turn = game.getTurn();
-        return !((game.getRed().contains(user) && !turn.equals("DANGER")) ||
-        (game.getBlue().contains(user) && !turn.equals("PRIMARY")));
+        return (game.getRed().contains(user) && turn.equals("DANGER")) ||
+                (game.getBlue().contains(user) && turn.equals("PRIMARY"));
     }
 
     public List<ActionRow> getSpymasterActionRows(){
