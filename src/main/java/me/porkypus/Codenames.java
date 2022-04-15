@@ -9,10 +9,12 @@ import java.io.IOException;
 import java.util.*;
 
 public class Codenames {
+
     HashSet<String> wordList, customWords;
     HashSet<User> players, spymaster, red ,blue;
     HashMap<String,Integer> scores;
     HashMap<String,ButtonStyle> wordSets, wordsInGame;
+    HashMap<User, String> spymasterTeams;
     boolean running, ready;
     String turn;
     int guesses;
@@ -24,6 +26,7 @@ public class Codenames {
         wordSets = new HashMap<>();
         wordsInGame = new HashMap<>();
         scores = new HashMap<>();
+        spymasterTeams = new HashMap<>();
 
         players = new HashSet<>();
         spymaster = new HashSet<>();
@@ -33,6 +36,8 @@ public class Codenames {
         clueSent = false;
         guesses = -1;
     }
+
+
 
     public HashSet<User> getSpymasters() {
         return spymaster;
@@ -50,6 +55,10 @@ public class Codenames {
             names.add(user.getName());
         }
         return names;
+    }
+
+    public HashMap<User, String> getSpymasterTeams() {
+        return spymasterTeams;
     }
 
     public boolean isClueSent() {
@@ -255,6 +264,11 @@ public class Codenames {
         while (playerIterator.hasNext()) {
             User player = playerIterator.next();
             if (spymaster.size() < 2) {
+                if (spymaster.isEmpty()) {
+                    spymasterTeams.put(player, "DANGER");
+                } else {
+                    spymasterTeams.put(player, "PRIMARY");
+                }
                 spymaster.add(player);
             } else if (red.size() < blue.size()) {
                 red.add(player);

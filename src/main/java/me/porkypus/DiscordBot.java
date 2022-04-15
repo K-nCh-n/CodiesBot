@@ -93,6 +93,7 @@ public class DiscordBot extends ListenerAdapter {
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
         MessageChannel channel = event.getChannel();
         String command = event.getName();
+        User user = event.getUser();
 
         switch (command){
             case "codies":
@@ -107,19 +108,23 @@ public class DiscordBot extends ListenerAdapter {
 
             case "clue":
                 if (!game.isRunning()) {
-                    event.reply("```The game is not running```").queue();
+                    event.reply("```The game is not running```").setEphemeral(true).queue();
                 } else if (game.isClueSent()) {
-                    event.reply("```A clue has already been sent```").queue();
+                    event.reply("```A clue has already been sent```").setEphemeral(true).queue();
                 } else {
                     if (event.getOption("clue") == null || event.getOption("guesses") == null) {
                         event.reply("```Please add options you buffoon```").queue();
                     } else {
-                        game.setClueSent(true);
-                        String clue = Objects.requireNonNull(event.getOption("clue")).getAsString();
-                        int guesses = Objects.requireNonNull(event.getOption("guesses")).getAsInt();
-                        game.setGuesses(guesses);
-                        event.deferReply().flatMap(v -> event.getHook().editOriginal("```Clue: " + clue + " Guesses: " + guesses + "```"))
-                                .complete();
+                        if (!game.getSpymasterTeams().get(user).equals(game.getTurn())) {
+                            event.reply("```Not your turn my friend```").setEphemeral(true).queue();
+                        } else {
+                            game.setClueSent(true);
+                            String clue = Objects.requireNonNull(event.getOption("clue")).getAsString();
+                            int guesses = Objects.requireNonNull(event.getOption("guesses")).getAsInt();
+                            game.setGuesses(guesses);
+                            event.deferReply().flatMap(v -> event.getHook().editOriginal("```Clue: " + clue + " Guesses: " + guesses + "```"))
+                                    .complete();
+                        }
                     }
                 }
                 break;
