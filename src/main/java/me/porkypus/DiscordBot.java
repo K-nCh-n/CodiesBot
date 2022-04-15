@@ -7,7 +7,9 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
@@ -16,6 +18,7 @@ import net.dv8tion.jda.api.utils.ChunkingFilter;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 
 import javax.security.auth.login.LoginException;
+import javax.swing.text.html.Option;
 import java.util.*;
 
 
@@ -37,8 +40,8 @@ public class DiscordBot extends ListenerAdapter {
 
         jda.upsertCommand("codies", "Type /codies").queue();
         jda.upsertCommand("clue", "Type /clue")
-                .addOption(OptionType.STRING, "clue", "The clue given")
-                .addOption(OptionType.INTEGER, "guesses", "The number of guesses")
+                .addOption(OptionType.STRING, "clue", "The clue given", true)
+                .addOption(OptionType.INTEGER, "guesses", "The number of guesses", true)
                 .queue();
         jda.upsertCommand("stop", "Type /stop").queue();
     }
@@ -112,19 +115,16 @@ public class DiscordBot extends ListenerAdapter {
                 } else if (game.isClueSent()) {
                     event.reply("```A clue has already been sent```").setEphemeral(true).queue();
                 } else {
-                    if (event.getOption("clue") == null || event.getOption("guesses") == null) {
-                        event.reply("```Please add options you buffoon```").queue();
+                    if (!game.getSpymasterTeams().get(user).equals(game.getTurn())) {
+                        event.reply("```Not your turn my friend```").setEphemeral(true).queue();
                     } else {
-                        if (!game.getSpymasterTeams().get(user).equals(game.getTurn())) {
-                            event.reply("```Not your turn my friend```").setEphemeral(true).queue();
-                        } else {
-                            game.setClueSent(true);
-                            String clue = Objects.requireNonNull(event.getOption("clue")).getAsString();
-                            int guesses = Objects.requireNonNull(event.getOption("guesses")).getAsInt();
-                            game.setGuesses(guesses);
-                            event.deferReply().flatMap(v -> event.getHook().editOriginal("```Clue: " + clue + " Guesses: " + guesses + "```"))
-                                    .complete();
-                        }
+                        game.setClueSent(true);
+                        String clue = Objects.requireNonNull(event.getOption("clue")).getAsString();
+                        int guesses = Objects.requireNonNull(event.getOption("guesses")).getAsInt();
+                        game.setGuesses(guesses);
+                        event.deferReply()
+                                .flatMap(v -> event.getHook().editOriginal("```Clue: " + clue + " Guesses: " + guesses + "```"))
+                                .complete();
                     }
                 }
                 break;
@@ -190,15 +190,15 @@ public class DiscordBot extends ListenerAdapter {
         //Button to randomise
         else if (buttonId.equals("random")) {
             if (game.getPlayers().size() < 4) {
-                channel.sendMessage("```More than 3 players are required```").queue();
-                event.deferEdit().complete();
-                return;
+                event.reply("```More than 3 players are required```").setEphemeral(true).queue();
+            } else {
+                String outMessage = game.randomisePlayers();
+                for (Member spymaster : guild.getMembersWithRoles(guild.getRolesByName("spymaster", true).get(0))) {
+                    guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).complete();
+                }
+                event.editMessage(outMessage).complete();
             }
-            String outMessage = game.randomisePlayers();
-            for (Member spymaster : guild.getMembersWithRoles(guild.getRolesByName("spymaster", true).get(0))) {
-                guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).complete();
-            }
-            event.editMessage(outMessage).complete();
+
         }
 
         //Bomb
