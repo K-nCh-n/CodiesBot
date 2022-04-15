@@ -2,7 +2,6 @@ package me.porkypus;
 
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -38,7 +37,9 @@ public class Codenames {
     }
 
 
-
+    public boolean isPlayer(User user) {
+        return players.contains(user);
+    }
     public HashSet<User> getSpymasters() {
         return spymaster;
     }

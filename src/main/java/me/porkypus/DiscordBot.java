@@ -112,8 +112,9 @@ public class DiscordBot extends ListenerAdapter {
                     ebSetupMsg.setImage("https://cdn.discordapp.com/emojis/879725330426896394.webp?size=56&quality=lossless");
                     ebSetupMsg.clearFields();
                     ebSetupMsg.addField("Players", "", true);
-                    event.deferReply().queue();
-                    event.getHook().sendMessageEmbeds(ebSetupMsg.build()).addActionRows(actionRows).queue();
+                    event.deferReply()
+                            .flatMap(v -> event.getHook().sendMessageEmbeds(ebSetupMsg.build()).addActionRows(actionRows))
+                            .queue();
                 }
                 break;
 
@@ -190,7 +191,13 @@ public class DiscordBot extends ListenerAdapter {
         //Pass Button
         else if (buttonId.equals("pass")) {
             if (!checkPlayerTurn(user)) {
-                event.deferEdit().queue();
+                if (!game.isPlayer(user)) {
+                    event.reply("```You are not a player```").setEphemeral(true).queue();
+                } else {
+                    event.reply("```It is currently the opponent's turn```").setEphemeral(true).queue();
+                }
+            } else if (!game.isClueSent()) {
+                event.reply("```A clue has not been set yet```").setEphemeral(true).queue();
             } else {
                 game.changeTurn();
                 event.editButton(button.withStyle(ButtonStyle.valueOf(game.getTurn()))).complete();
@@ -228,7 +235,13 @@ public class DiscordBot extends ListenerAdapter {
         //Game Buttons
         else if(game.checkPlayerButton(buttonId)) {
             if (!checkPlayerTurn(user)) {
-                event.deferEdit().queue();
+                if (!game.isPlayer(user)) {
+                    event.reply("```You are not a player```").setEphemeral(true).queue();
+                } else {
+                    event.reply("```It is currently the opponent's turn```").setEphemeral(true).queue();
+                }
+            } else if (!game.isClueSent()){
+                event.reply("```A clue has not been set yet```").setEphemeral(true).queue();
             } else {
                //Change the button colour
                event.editButton(button.asDisabled().withStyle(trueStyle)).complete();
