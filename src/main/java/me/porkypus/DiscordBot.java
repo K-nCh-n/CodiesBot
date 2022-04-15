@@ -42,8 +42,8 @@ public class DiscordBot extends ListenerAdapter {
 
         jda.upsertCommand("codies", "Type /codies").queue();
         jda.upsertCommand("clue", "Type /clue")
-                .addOption(OptionType.STRING, "clue", "The clue given")
-                .addOption(OptionType.INTEGER, "guesses", "The number of guesses")
+                .addOption(OptionType.STRING, "clue", "The clue given", true)
+                .addOption(OptionType.INTEGER, "guesses", "The number of guesses", true)
                 .queue();
         jda.upsertCommand("stop", "Type /stop").queue();
     }
@@ -79,13 +79,11 @@ public class DiscordBot extends ListenerAdapter {
                     ArrayList<String> outMessages = new ArrayList<>();
                     StringBuilder str = new StringBuilder();
                     str.append("```");
-                    int i = 0;
                     for (String word : wordlist) {
                         str.append(word);
                         if (str.length() > 1990) {
                             str.append("```");
                             outMessages.add(String.valueOf(str));
-                            i++;
                         }
                     }
                     for (String s:outMessages) {
