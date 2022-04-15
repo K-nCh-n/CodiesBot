@@ -77,13 +77,14 @@ public class DiscordBot extends ListenerAdapter {
                     HashSet<String> wordlist = game.getWordList();
                     channel.sendMessage("```Wordlist: ```").queue();
                     ArrayList<String> outMessages = new ArrayList<>();
-                    String outMessage = "```";
+                    StringBuilder str = new StringBuilder();
+                    str.append("```");
                     int i = 0;
                     for (String word : wordlist) {
-                        outMessage = outMessage + " " + word;
-                        if (outMessage.length() > 1990) {
-                            outMessages.add(outMessage + "```");
-                            outMessage = "```";
+                        str.append(word);
+                        if (str.length() > 1990) {
+                            str.append("```");
+                            outMessages.add(String.valueOf(str));
                             i++;
                         }
                     }
@@ -216,9 +217,9 @@ public class DiscordBot extends ListenerAdapter {
                 guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).complete();
             }
             ebSetupMsg.clearFields();
-            ebSetupMsg.addField("Spymasters", game.getSpymasterList().toString() ,false);
-            ebSetupMsg.addField("Red", game.getRedList().toString(),false);
-            ebSetupMsg.addField("Blue", game.getBlueList().toString(),false);
+            ebSetupMsg.addField("Spymasters", game.getSpymasterList().toString() ,true);
+            ebSetupMsg.addField("Red", game.getRedList().toString(),true);
+            ebSetupMsg.addField("Blue", game.getBlueList().toString(),true);
             event.editMessageEmbeds(ebSetupMsg.build()).complete();
         }
 
@@ -261,7 +262,13 @@ public class DiscordBot extends ListenerAdapter {
                }else if (!trueStyle.toString().equals(turn) || styleString.equals("SECONDARY") || game.getGuesses() == 0){
                    game.changeTurn();
                }
-               botMessage.editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + " Turn: " + (game.getTurn().equals("DANGER") ? "RED" : "BLUE")  + "```").complete();
+               Color color = game.getTurn().equals("DANGER") ? Color.red : Color.blue;
+               ebGameMsg.setColor(color);
+               ebGameMsg.clearFields();
+               ebGameMsg.addField("Red", String.valueOf(redRemaining), true);
+               ebGameMsg.addField("Blue", String.valueOf(blueRemaining), true);
+               ebGameMsg.addField("Turn", (game.getTurn().equals("DANGER") ? "RED" : "BLUE"), true);
+               botMessage.editMessageEmbeds(ebGameMsg.build()).complete();
             }
         }
         else{
@@ -314,7 +321,13 @@ public class DiscordBot extends ListenerAdapter {
                     .setActionRows(spymasterActionRows)
                     .queue();
 
-            playersChannel.sendMessage("```Red: 9 Blue: 8 Turn: RED```")
+            ebGameMsg.setTitle("GAME GRID");
+            ebGameMsg.setColor(Color.red);
+            ebGameMsg.clearFields();
+            ebGameMsg.addField("Red", "9", true);
+            ebGameMsg.addField("Blue", "8", true);
+            ebGameMsg.addField("Turn", "RED", true);
+            playersChannel.sendMessageEmbeds(ebGameMsg.build())
                     .setActionRows(playerActionRows)
                     .queue();
         }
