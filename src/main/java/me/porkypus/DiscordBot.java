@@ -7,6 +7,7 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
@@ -34,9 +35,11 @@ public class DiscordBot extends ListenerAdapter {
                 .enableIntents(GatewayIntent.GUILD_MEMBERS)
                 .build();
 
-        jda.upsertCommand("join", "Type /join").queue();
         jda.upsertCommand("codies", "Type /codies").queue();
-        jda.upsertCommand("start", "Type /start").queue();
+        jda.upsertCommand("clue", "Type /clue")
+                .addOption(OptionType.STRING, "clue", "The clue given")
+                .addOption(OptionType.INTEGER, "guesses", "The number of guesses")
+                .queue();
         jda.upsertCommand("stop", "Type /stop").queue();
     }
 
@@ -99,6 +102,25 @@ public class DiscordBot extends ListenerAdapter {
                     List<ActionRow> actionRows =  resetGame(channel);
                     game.initialiseGame();
                     event.reply("```Lobby: ```").addActionRows(actionRows).queue();
+                }
+                break;
+
+            case "clue":
+                if (!game.isRunning()) {
+                    event.reply("```The game is not running```").queue();
+                } else if (game.isClueSent()) {
+                    event.reply("```A clue has already been sent```").queue();
+                } else {
+                    if (event.getOption("clue") == null || event.getOption("guesses") == null) {
+                        event.reply("```Please add options you buffoon```").queue();
+                    } else {
+                        game.setClueSent(true);
+                        String clue = Objects.requireNonNull(event.getOption("clue")).getAsString();
+                        int guesses = Objects.requireNonNull(event.getOption("guesses")).getAsInt();
+                        game.setGuesses(guesses);
+                        event.deferReply().flatMap(v -> event.getHook().editOriginal("```Clue: " + clue + " Guesses: " + guesses + "```"))
+                                .complete();
+                    }
                 }
                 break;
 
@@ -191,6 +213,7 @@ public class DiscordBot extends ListenerAdapter {
             } else {
                //Change the button colour
                event.editButton(button.asDisabled().withStyle(trueStyle)).complete();
+               game.decrementGuesses();
 
                //Update score
                HashMap<String, Integer> scores = game.getScores();
@@ -203,12 +226,12 @@ public class DiscordBot extends ListenerAdapter {
                if (gameEnd){
                    String losingTeam = redRemaining == 0 ? "Blue team" : "Red team";
                    channel.sendMessage("```" + losingTeam + " got rekt```").queue();
-               }else if (!trueStyle.toString().equals(turn) || styleString.equals("SECONDARY")){
+               }else if (!trueStyle.toString().equals(turn) || styleString.equals("SECONDARY") || game.getGuesses() == 0){
                    game.changeTurn();
                }
                botMessage.editMessage("```Red: " + redRemaining + " Blue: " + blueRemaining + " Turn: " + (game.getTurn().equals("DANGER") ? "RED" : "BLUE")  + "```").complete();
             }
-            }
+        }
         else{
             event.deferEdit().queue();
         }

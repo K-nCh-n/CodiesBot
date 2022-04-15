@@ -15,6 +15,8 @@ public class Codenames {
     HashMap<String,ButtonStyle> wordSets, wordsInGame;
     boolean running, ready;
     String turn;
+    int guesses;
+    boolean clueSent;
 
     public Codenames(){
         wordList = new HashSet<>();
@@ -27,6 +29,9 @@ public class Codenames {
         spymaster = new HashSet<>();
         red = new HashSet<>();
         blue = new HashSet<>();
+
+        clueSent = false;
+        guesses = -1;
     }
 
     public HashSet<User> getSpymasters() {
@@ -47,6 +52,24 @@ public class Codenames {
         return names;
     }
 
+    public boolean isClueSent() {
+        return clueSent;
+    }
+
+    public void setClueSent(boolean clueSent) {
+        this.clueSent = clueSent;
+    }
+
+    public int getGuesses() {
+        return guesses;
+    }
+
+    public void setGuesses(int guesses) {
+        this.guesses = guesses;
+    }
+    public void decrementGuesses() {
+        guesses--;
+    }
     public HashMap<String, ButtonStyle> getWordSets() {
         return wordSets;
     }
@@ -206,6 +229,7 @@ public class Codenames {
 
     public void changeTurn(){
         turn = turn.equals("PRIMARY") ? "DANGER" : "PRIMARY";
+        setClueSent(false);
     }
 
     /**
