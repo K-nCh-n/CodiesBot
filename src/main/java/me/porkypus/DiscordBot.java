@@ -1,5 +1,6 @@
 package me.porkypus;
 
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.*;
@@ -7,9 +8,7 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
-import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
@@ -18,8 +17,9 @@ import net.dv8tion.jda.api.utils.ChunkingFilter;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 
 import javax.security.auth.login.LoginException;
-import javax.swing.text.html.Option;
+import java.awt.*;
 import java.util.*;
+import java.util.List;
 
 
 public class DiscordBot extends ListenerAdapter {
@@ -27,6 +27,8 @@ public class DiscordBot extends ListenerAdapter {
     Codenames game = new Codenames();
     List<Button> spymasterButtonList, playerButtonList;
     String prefix = "!";
+    EmbedBuilder ebSetupMsg = new EmbedBuilder();
+    EmbedBuilder ebGameMsg = new EmbedBuilder();
 
     public static void main(String[] args) throws LoginException {
 
@@ -40,8 +42,8 @@ public class DiscordBot extends ListenerAdapter {
 
         jda.upsertCommand("codies", "Type /codies").queue();
         jda.upsertCommand("clue", "Type /clue")
-                .addOption(OptionType.STRING, "clue", "The clue given", true)
-                .addOption(OptionType.INTEGER, "guesses", "The number of guesses", true)
+                .addOption(OptionType.STRING, "clue", "The clue given")
+                .addOption(OptionType.INTEGER, "guesses", "The number of guesses")
                 .queue();
         jda.upsertCommand("stop", "Type /stop").queue();
     }
@@ -57,14 +59,14 @@ public class DiscordBot extends ListenerAdapter {
         MessageChannel channel = event.getChannel();
 
         if (raw.startsWith(prefix)) {
-            String command = raw.replaceFirst(prefix, "").toLowerCase();
+            var args = new ArrayList<>(Arrays.asList((raw.replaceFirst(prefix, "").toLowerCase().split(" "))));
+            String command = args.remove(0);
             switch (command){
                 case "cw":
-                    String wordString = command.replaceFirst("cw", "").toLowerCase();
-                    if(wordString.isBlank()){
+                    if(args.isEmpty()){
                         channel.sendMessage("```Custom Words: \n" + game.getCustomWords() + "```").queue();
                     } else {
-                        game.setCustomWords(wordString);
+                        game.setCustomWords(args.toString());
                     }
                     break;
 
@@ -105,7 +107,13 @@ public class DiscordBot extends ListenerAdapter {
                 } else {
                     List<ActionRow> actionRows =  resetGame(channel);
                     game.initialiseGame();
-                    event.reply("```Lobby: ```").addActionRows(actionRows).queue();
+                    ebSetupMsg.setTitle("CODENAMES");
+                    ebSetupMsg.setColor(Color.pink);
+                    ebSetupMsg.setImage("https://cdn.discordapp.com/emojis/879725330426896394.webp?size=56&quality=lossless");
+                    ebSetupMsg.clearFields();
+                    ebSetupMsg.addField("Players", "", true);
+                    event.deferReply().queue();
+                    event.getHook().sendMessageEmbeds(ebSetupMsg.build()).addActionRows(actionRows).queue();
                 }
                 break;
 
@@ -155,7 +163,9 @@ public class DiscordBot extends ListenerAdapter {
         //Button to join
         if (buttonId.equals("join")) {
             game.addPlayer(user);
-            event.editMessage("```Lobby: " + game.getNames() + "```").complete();
+            ebSetupMsg.clearFields();
+            ebSetupMsg.addField("Players", game.getNames().toString(),false);
+            event.editMessageEmbeds(ebSetupMsg.build()).complete();
         }
 
         //Button to start game
@@ -190,21 +200,25 @@ public class DiscordBot extends ListenerAdapter {
         //Button to randomise
         else if (buttonId.equals("random")) {
             if (game.getPlayers().size() < 4) {
-                event.reply("```More than 3 players are required```").setEphemeral(true).queue();
-            } else {
-                String outMessage = game.randomisePlayers();
-                for (Member spymaster : guild.getMembersWithRoles(guild.getRolesByName("spymaster", true).get(0))) {
-                    guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).complete();
-                }
-                event.editMessage(outMessage).complete();
+                channel.sendMessage("```More than 3 players are required```").queue();
+                event.deferEdit().complete();
+                return;
             }
-
+            game.randomisePlayers();
+            for (Member spymaster : guild.getMembersWithRoles(guild.getRolesByName("spymaster", true).get(0))) {
+                guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).complete();
+            }
+            ebSetupMsg.clearFields();
+            ebSetupMsg.addField("Spymasters", game.getSpymasterList().toString() ,false);
+            ebSetupMsg.addField("Red", game.getRedList().toString(),false);
+            ebSetupMsg.addField("Blue", game.getBlueList().toString(),false);
+            event.editMessageEmbeds(ebSetupMsg.build()).complete();
         }
 
         //Bomb
         else if(trueStyle == null) {
             List<ActionRow> spymasterActionRows = getSpymasterActionRows();
-            String oldMessage = event.getMessage().toString();
+            String oldMessage = event.getMessage().getContentRaw();
             event.editMessage(oldMessage)
                     .setActionRows(spymasterActionRows)
                     .queue();

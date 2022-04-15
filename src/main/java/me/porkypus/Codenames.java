@@ -49,6 +49,28 @@ public class Codenames {
         return blue;
     }
 
+    public List<String> getSpymasterList() {
+        List<String> names = new ArrayList<>();
+        for (User user : spymaster) {
+            names.add(user.getName());
+        }
+        return names;
+    }
+    public List<String> getRedList() {
+        List<String> names = new ArrayList<>();
+        for (User user : red) {
+            names.add(user.getName());
+        }
+        return names;
+    }
+    public List<String> getBlueList() {
+        List<String> names = new ArrayList<>();
+        for (User user : blue) {
+            names.add(user.getName());
+        }
+        return names;
+    }
+
     public List<String> getNames() {
         List<String> names = new ArrayList<>();
         for (User user : players) {
@@ -256,7 +278,7 @@ public class Codenames {
         return wordsInGame.get(word);
     }
 
-    public String randomisePlayers() {
+    public void randomisePlayers() {
         spymaster.clear();
         red.clear();
         blue.clear();
@@ -284,21 +306,6 @@ public class Codenames {
             }
         }
         ready = true;
-
-        List<String> spymasterNames = new ArrayList<>();
-        List<String> redNames = new ArrayList<>();
-        List<String> blueNames = new ArrayList<>();
-
-        for (User user : spymaster) {
-            spymasterNames.add(user.getName());
-        }
-        for (User user : red) {
-            redNames.add(user.getName());
-        }
-        for (User user : blue) {
-            blueNames.add(user.getName());
-        }
-        return "```Spymasters: " + spymasterNames + "\nRed: " + redNames + "\nBlue: " + blueNames + "```";
     }
 
     public boolean isReady() {
