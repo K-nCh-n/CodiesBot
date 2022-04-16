@@ -18,8 +18,10 @@ import net.dv8tion.jda.api.utils.MemberCachePolicy;
 
 import javax.security.auth.login.LoginException;
 import java.awt.*;
+import java.sql.Time;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 
 public class DiscordBot extends ListenerAdapter {
@@ -41,19 +43,19 @@ public class DiscordBot extends ListenerAdapter {
                 .build();
 
         jda.upsertCommand("codies", "Type /codies").queue();
+        jda.upsertCommand("stop", "Type /stop").queue();
         jda.upsertCommand("clue", "Type /clue")
                 .addOption(OptionType.STRING, "clue", "The clue given", true)
                 .addOption(OptionType.INTEGER, "guesses", "The number of guesses", true)
                 .queue();
-        jda.upsertCommand("stop", "Type /stop").queue();
+
     }
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         User sender = event.getAuthor();
-        if (sender.isBot()) {
-            return;
-        }
+        if (sender.isBot()) return;
+
         Message userMessage = event.getMessage();
         String raw = userMessage.getContentRaw();
         MessageChannel channel = event.getChannel();
@@ -104,7 +106,10 @@ public class DiscordBot extends ListenerAdapter {
         switch (command){
             case "codies":
                 if (game.isRunning()) {
-                    event.reply("An instance of codies has already been started").setEphemeral(true).queue();
+                    event.reply("An instance of codies has already been started")
+                            .setEphemeral(true)
+                            .flatMap(v -> event.getHook().deleteOriginal().delay(3, TimeUnit.SECONDS))
+                            .queue();
                 } else {
                     List<ActionRow> actionRows =  resetGame(channel);
                     if (!guild.getThreadChannelsByName("CLUES", true).isEmpty()) {
@@ -112,7 +117,7 @@ public class DiscordBot extends ListenerAdapter {
                     }
                     game.initialiseGame();
                     ebSetupMsg.setTitle("CODENAMES");
-                    ebSetupMsg.setColor(Color.GREEN);
+                    ebSetupMsg.setColor(new Color(45,124,71,255));
                     ebSetupMsg.setImage("https://cdn.discordapp.com/emojis/879725330426896394.webp?size=56&quality=lossless");
                     ebSetupMsg.clearFields();
                     ebSetupMsg.addField("Players", "", true);
@@ -282,8 +287,7 @@ public class DiscordBot extends ListenerAdapter {
                ebGameMsg.addField("Turn", (game.getTurn().equals("DANGER") ? "RED" : "BLUE"), true);
                botMessage.editMessageEmbeds(ebGameMsg.build()).complete();
             }
-        }
-        else{
+        } else {
             event.deferEdit().queue();
         }
     }
@@ -364,7 +368,6 @@ public class DiscordBot extends ListenerAdapter {
                 (Button.success("random", "Randomise Teams")),
                 (Button.success("start", "Start Game"))
         ));
-
         return actionRows;
     }
 

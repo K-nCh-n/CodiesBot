@@ -36,12 +36,7 @@ public class Codenames {
         guesses = -1;
     }
 
-    public boolean isNotPlayer(User user) {
-        return !red.contains(user) && !blue.contains(user);
-    }
-    public HashSet<User> getSpymasters() {
-        return spymaster;
-    }
+
     public HashSet<User> getRed() {
         return red;
     }
@@ -49,13 +44,6 @@ public class Codenames {
         return blue;
     }
 
-    public List<String> getSpymasterList() {
-        List<String> names = new ArrayList<>();
-        for (User user : spymaster) {
-            names.add(user.getName());
-        }
-        return names;
-    }
     public List<String> getRedList() {
         List<String> names = new ArrayList<>();
         for (User user : red) {
@@ -79,6 +67,19 @@ public class Codenames {
         return names;
     }
 
+    public int getGuesses() {
+        return guesses;
+    }
+
+    public void setGuesses(int guesses) {
+        this.guesses = guesses;
+    }
+
+
+    public HashSet<User> getSpymasters() {
+        return spymaster;
+    }
+
     public HashMap<User, String> getSpymasterTeams() {
         return spymasterTeams;
     }
@@ -99,18 +100,33 @@ public class Codenames {
         this.clueSent = clueSent;
     }
 
-    public int getGuesses() {
-        return guesses;
+
+    public boolean isNotPlayer(User user) {
+        return !red.contains(user) && !blue.contains(user);
     }
 
-    public void setGuesses(int guesses) {
-        this.guesses = guesses;
+    public boolean isReady() {
+        return ready;
     }
+
+    public boolean isRunning(){
+        return running;
+    }
+
+    public HashMap<String, Integer> getScores() {
+        return scores;
+    }
+
+    public HashSet<User> getPlayers() {
+        return players;
+    }
+
+    public String getTurn() {
+        return turn;
+    }
+
     public void decrementGuesses() {
         guesses--;
-    }
-    public HashMap<String, ButtonStyle> getWordSets() {
-        return wordSets;
     }
 
     //WordLists {
@@ -148,28 +164,27 @@ public class Codenames {
             wordSets.put(wordset,style);
         }
 
-        public void setCustomWords(String message){
-            customWords.clear();
-            try {
-                String[] words = message.replaceAll("[^a-zA-Z,]", " ").split(",");
-                for (String word : words) {
-                    word =  word.trim();
-                    customWords.add(word);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+    public void setCustomWords(String message){
+        customWords.clear();
+        try {
+            String[] words = message.replaceAll("[^a-zA-Z,]", " ").split(",");
+            for (String word : words) {
+                word =  word.trim();
+                customWords.add(word);
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
 
-        public HashSet<String> getCustomWords() {
-            return customWords;
-        }
+    public HashSet<String> getCustomWords() {
+        return customWords;
+    }
 
-        public HashSet<String> getWordList() {
-            updateWordlist();
-            return wordList;
-        }
-    //}
+    public HashSet<String> getWordList() {
+        updateWordlist();
+        return wordList;
+    }
 
     /**
      * Resets the game,
@@ -235,9 +250,7 @@ public class Codenames {
         running = false;
     }
 
-    public boolean isRunning(){
-        return running;
-    }
+
 
     /**
      * Decrements the score of the team that last played
@@ -254,18 +267,9 @@ public class Codenames {
         return newScore == 0;
     }
 
-    public HashMap<String, Integer> getScores() {
-        return scores;
-    }
-
-    public HashSet<User> getPlayers() {
-        return players;
-    }
-
-    public String getTurn() {
-        return turn;
-    }
-
+    /**
+     * Alternates between teams Red and Blue
+     */
     public void changeTurn(){
         turn = turn.equals("PRIMARY") ? "DANGER" : "PRIMARY";
         setClueSent(false);
@@ -286,6 +290,9 @@ public class Codenames {
         return wordsInGame.get(word);
     }
 
+    /**
+     * Randomises the players and decides which team each player is on
+     */
     public void randomisePlayers() {
         spymaster.clear();
         red.clear();
@@ -314,9 +321,5 @@ public class Codenames {
             }
         }
         ready = true;
-    }
-
-    public boolean isReady() {
-        return ready;
     }
 }
