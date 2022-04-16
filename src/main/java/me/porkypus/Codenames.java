@@ -308,11 +308,13 @@ public class Codenames {
      */
     public void randomisePlayers() {
         spymaster.clear();
+        spymasterTeams.clear();
         red.clear();
         blue.clear();
         int numPlayers = players.size();
+        var tempPlayers = new HashSet<>(players);
         for (int i = 0; i < numPlayers; i++) {
-            User player = getRandomElementFromSet(players);
+            User player = getRandomElementFromSet(tempPlayers);
             if (spymaster.size() < 2) {
                 if (spymaster.isEmpty()) {
                     spymasterTeams.put(player, "DANGER");
