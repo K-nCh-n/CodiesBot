@@ -30,6 +30,7 @@ public class DiscordBot extends ListenerAdapter {
     String prefix = "!";
     EmbedBuilder ebSetupMsg = new EmbedBuilder();
     EmbedBuilder ebGameMsg = new EmbedBuilder();
+    long setupMsgId, gameMsgId;
 
     public static void main(String[] args) throws LoginException {
 
@@ -110,7 +111,7 @@ public class DiscordBot extends ListenerAdapter {
                             .flatMap(v -> event.getHook().deleteOriginal().delay(3, TimeUnit.SECONDS))
                             .queue();
                 } else {
-                    List<ActionRow> actionRows = resetGame(channel);
+                    List<ActionRow> actionRows = resetGame();
                     if (!guild.getThreadChannelsByName("CLUES", true).isEmpty()) {
                         guild.getThreadChannelsByName("CLUES", true).get(0).delete().queue();
                     }
@@ -122,7 +123,7 @@ public class DiscordBot extends ListenerAdapter {
                     ebSetupMsg.addField("Players", "", true);
                     event.deferReply()
                             .flatMap(v -> event.getHook().sendMessageEmbeds(ebSetupMsg.build()).addActionRows(actionRows))
-                            .queue();
+                            .queue((message -> setupMsgId = message.getIdLong()));
                 }
                 break;
 
@@ -197,7 +198,6 @@ public class DiscordBot extends ListenerAdapter {
             } else {
                 event.reply("```The teams have not been randomised yet```").setEphemeral(true).queue();
             }
-
         }
 
         //Buttons to choose word sets
@@ -213,6 +213,8 @@ public class DiscordBot extends ListenerAdapter {
                 if (game.isClueSent()) {
                     game.changeTurn();
                     event.editButton(button.withStyle(ButtonStyle.valueOf(game.getTurn()))).complete();
+                    updateGameMsgEmbed();
+                    channel.editMessageEmbedsById(gameMsgId, ebGameMsg.build()).queue();
                 } else {
                     event.reply("```A clue has not been set yet```").setEphemeral(true).queue();
                 }
@@ -261,8 +263,7 @@ public class DiscordBot extends ListenerAdapter {
 
                     //Update score
                     HashMap<String, Integer> scores = game.getScores();
-                    int redRemaining = scores.get("DANGER");
-                    int blueRemaining = scores.get("PRIMARY");
+                    Integer redRemaining = scores.get("DANGER");
                     boolean gameEnd = game.decrementScore(trueStyle.toString());
 
                     //Check if end game or change turn
@@ -273,13 +274,10 @@ public class DiscordBot extends ListenerAdapter {
                     } else if (!trueStyle.toString().equals(turn) || styleString.equals("SECONDARY") || game.getGuesses() == 0) {
                         game.changeTurn();
                     }
-                    Color color = game.getTurn().equals("DANGER") ? Color.red : Color.blue;
-                    ebGameMsg.setColor(color);
-                    ebGameMsg.clearFields();
-                    ebGameMsg.addField("Red", String.valueOf(redRemaining), true);
-                    ebGameMsg.addField("Blue", String.valueOf(blueRemaining), true);
-                    ebGameMsg.addField("Turn", (game.getTurn().equals("DANGER") ? "RED" : "BLUE"), true);
+                    updateGameMsgEmbed();
                     botMessage.editMessageEmbeds(ebGameMsg.build()).complete();
+                    Button passButton = game.getTurn().equals("DANGER") ? Button.danger("pass", "Pass") : Button.primary("pass", "Pass");
+                    channel.editMessageEmbedsById(setupMsgId, ebSetupMsg.build()).setActionRow(passButton).queue();
                 } else {
                     event.reply("```A clue has not been set yet```").setEphemeral(true).queue();
                 }
@@ -338,23 +336,17 @@ public class DiscordBot extends ListenerAdapter {
                     .queue();
 
             ebGameMsg.setTitle("GAME GRID");
-            ebGameMsg.setColor(Color.red);
-            ebGameMsg.clearFields();
-            ebGameMsg.addField("Red", "9", true);
-            ebGameMsg.addField("Blue", "8", true);
-            ebGameMsg.addField("Turn", "RED", true);
+            updateGameMsgEmbed();
             playersChannel.sendMessageEmbeds(ebGameMsg.build())
                     .setActionRows(playerActionRows)
-                    .queue();
+                    .queue((message -> gameMsgId = message.getIdLong()));
         }
     }
 
     /**
      * Creates a new instance of the game
-     *
-     * @param channel Channel to send initial message
      */
-    public List<ActionRow> resetGame(MessageChannel channel) {
+    public List<ActionRow> resetGame() {
         game.resetGame();
         spymasterButtonList = new ArrayList<>();
         playerButtonList = new ArrayList<>();
@@ -396,5 +388,17 @@ public class DiscordBot extends ListenerAdapter {
         playerActionRows.add(ActionRow.of(playerButtonList.subList(15, 20)));
         playerActionRows.add(ActionRow.of(playerButtonList.subList(20, 25)));
         return playerActionRows;
+    }
+
+    public void updateGameMsgEmbed() {
+        HashMap<String, Integer> scores = game.getScores();
+        Integer redRemaining = scores.get("DANGER");
+        Integer blueRemaining = scores.get("PRIMARY");
+        Color color = game.getTurn().equals("DANGER") ? Color.red : Color.blue;
+        ebGameMsg.setColor(color);
+        ebGameMsg.clearFields();
+        ebGameMsg.addField("Red", String.valueOf(redRemaining), true);
+        ebGameMsg.addField("Blue", String.valueOf(blueRemaining), true);
+        ebGameMsg.addField("Turn", (game.getTurn().equals("DANGER") ? "RED" : "BLUE"), true);
     }
 }
