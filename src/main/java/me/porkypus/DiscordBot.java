@@ -98,16 +98,21 @@ public class DiscordBot extends ListenerAdapter {
         MessageChannel channel = event.getChannel();
         String command = event.getName();
         User user = event.getUser();
+        Guild guild = event.getGuild();
+        assert guild != null;
 
         switch (command){
             case "codies":
                 if (game.isRunning()) {
-                    event.reply("An instance of codies has already been started").queue();
+                    event.reply("An instance of codies has already been started").setEphemeral(true).queue();
                 } else {
                     List<ActionRow> actionRows =  resetGame(channel);
+                    if (!guild.getThreadChannelsByName("CLUES", true).isEmpty()) {
+                        guild.getThreadChannelsByName("CLUES", true).get(0).delete().queue();
+                    }
                     game.initialiseGame();
                     ebSetupMsg.setTitle("CODENAMES");
-                    ebSetupMsg.setColor(Color.pink);
+                    ebSetupMsg.setColor(Color.GREEN);
                     ebSetupMsg.setImage("https://cdn.discordapp.com/emojis/879725330426896394.webp?size=56&quality=lossless");
                     ebSetupMsg.clearFields();
                     ebSetupMsg.addField("Players", "", true);
@@ -120,6 +125,8 @@ public class DiscordBot extends ListenerAdapter {
             case "clue":
                 if (!game.isRunning()) {
                     event.reply("```The game is not running```").setEphemeral(true).queue();
+                } else if (!channel.equals(guild.getThreadChannelsByName("CLUES", true).get(0)) ){
+                    event.reply("```Please send clues in the CLUES thread```").setEphemeral(true).queue();
                 } else if (game.isClueSent()) {
                     event.reply("```A clue has already been sent```").setEphemeral(true).queue();
                 } else {
@@ -139,7 +146,10 @@ public class DiscordBot extends ListenerAdapter {
 
             case "stop":
                 game.stop();
-                event.reply("Game was stopped").queue();
+                if (!guild.getThreadChannelsByName("CLUES", true).isEmpty()) {
+                    guild.getThreadChannelsByName("CLUES", true).get(0).delete().queue();
+                }
+                event.reply("```Game was stopped```").queue();
                 break;
         }
     }
@@ -170,14 +180,20 @@ public class DiscordBot extends ListenerAdapter {
 
         //Button to start game
         else if (buttonId.equals("start")) {
-            startGame(guild, spymastersChannel, event.getChannel());
-            Button passButton;
-            if (game.getTurn().equals("DANGER")){
-                passButton = Button.danger("pass", "Pass");
+            if (game.isReady()) {
+                startGame(guild, spymastersChannel, event.getChannel());
+                Button passButton;
+                if (game.getTurn().equals("DANGER")){
+                    passButton = Button.danger("pass", "Pass");
+                } else {
+                    passButton = Button.primary("pass", "Pass");
+                }
+                event.getMessage().createThreadChannel("CLUES").queue();
+                event.editComponents().setActionRow(passButton).queue();
             } else {
-                passButton = Button.primary("pass", "Pass");
+                event.reply("```The teams have not been randomised yet```").setEphemeral(true).queue();
             }
-            event.editComponents().setActionRow(passButton).queue();
+
         }
 
         //Buttons to choose word sets
@@ -190,7 +206,7 @@ public class DiscordBot extends ListenerAdapter {
         //Pass Button
         else if (buttonId.equals("pass")) {
             if (!checkPlayerTurn(user)) {
-                if (!game.isPlayer(user)) {
+                if (game.isNotPlayer(user)) {
                     event.reply("```You are not a player```").setEphemeral(true).queue();
                 } else {
                     event.reply("```It is currently the opponent's turn```").setEphemeral(true).queue();
@@ -206,19 +222,17 @@ public class DiscordBot extends ListenerAdapter {
         //Button to randomise
         else if (buttonId.equals("random")) {
             if (game.getPlayers().size() < 4) {
-                channel.sendMessage("```More than 3 players are required```").queue();
-                event.deferEdit().complete();
-                return;
+                event.reply("```More than 3 players are required```").setEphemeral(true).queue();
+            } else {
+                game.randomisePlayers();
+                for (Member spymaster : guild.getMembersWithRoles(guild.getRolesByName("spymaster", true).get(0))) {
+                    guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).complete();
+                }
+                ebSetupMsg.clearFields();
+                ebSetupMsg.addField("Red", "Spymaster: " + game.getTeamsSpymaster().get("DANGER") + "\nTeam: " + game.getRedList().toString(),false);
+                ebSetupMsg.addField("Blue", "Spymaster: " + game.getTeamsSpymaster().get("PRIMARY")  + "\nTeam: " + game.getBlueList().toString(),false);
+                event.editMessageEmbeds(ebSetupMsg.build()).complete();
             }
-            game.randomisePlayers();
-            for (Member spymaster : guild.getMembersWithRoles(guild.getRolesByName("spymaster", true).get(0))) {
-                guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).complete();
-            }
-            ebSetupMsg.clearFields();
-            ebSetupMsg.addField("Spymasters", game.getSpymasterList().toString() ,true);
-            ebSetupMsg.addField("Red", game.getRedList().toString(),true);
-            ebSetupMsg.addField("Blue", game.getBlueList().toString(),true);
-            event.editMessageEmbeds(ebSetupMsg.build()).complete();
         }
 
         //Bomb
@@ -234,7 +248,7 @@ public class DiscordBot extends ListenerAdapter {
         //Game Buttons
         else if(game.checkPlayerButton(buttonId)) {
             if (!checkPlayerTurn(user)) {
-                if (!game.isPlayer(user)) {
+                if (game.isNotPlayer(user)) {
                     event.reply("```You are not a player```").setEphemeral(true).queue();
                 } else {
                     event.reply("```It is currently the opponent's turn```").setEphemeral(true).queue();

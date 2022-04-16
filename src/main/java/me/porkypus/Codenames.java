@@ -36,9 +36,8 @@ public class Codenames {
         guesses = -1;
     }
 
-
-    public boolean isPlayer(User user) {
-        return players.contains(user);
+    public boolean isNotPlayer(User user) {
+        return !red.contains(user) && !blue.contains(user);
     }
     public HashSet<User> getSpymasters() {
         return spymaster;
@@ -82,6 +81,14 @@ public class Codenames {
 
     public HashMap<User, String> getSpymasterTeams() {
         return spymasterTeams;
+    }
+
+    public HashMap<String, String> getTeamsSpymaster() {
+        HashMap<String, String> result = new HashMap<>();
+        for (User user : spymasterTeams.keySet()) {
+            result.put(spymasterTeams.get(user), user.getName());
+        }
+        return result;
     }
 
     public boolean isClueSent() {
