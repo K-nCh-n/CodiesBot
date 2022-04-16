@@ -18,9 +18,8 @@ import net.dv8tion.jda.api.utils.MemberCachePolicy;
 
 import javax.security.auth.login.LoginException;
 import java.awt.*;
-import java.sql.Time;
-import java.util.*;
 import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 
@@ -63,9 +62,9 @@ public class DiscordBot extends ListenerAdapter {
         if (raw.startsWith(prefix)) {
             var args = new ArrayList<>(Arrays.asList((raw.replaceFirst(prefix, "").toLowerCase().split(" "))));
             String command = args.remove(0);
-            switch (command){
+            switch (command) {
                 case "cw":
-                    if(args.isEmpty()){
+                    if (args.isEmpty()) {
                         channel.sendMessage("```Custom Words: \n" + game.getCustomWords() + "```").queue();
                     } else {
                         game.setCustomWords(args.toString());
@@ -88,7 +87,7 @@ public class DiscordBot extends ListenerAdapter {
                             outMessages.add(String.valueOf(str));
                         }
                     }
-                    for (String s:outMessages) {
+                    for (String s : outMessages) {
                         channel.sendMessage(s).queue();
                     }
             }
@@ -103,7 +102,7 @@ public class DiscordBot extends ListenerAdapter {
         Guild guild = event.getGuild();
         assert guild != null;
 
-        switch (command){
+        switch (command) {
             case "codies":
                 if (game.isRunning()) {
                     event.reply("An instance of codies has already been started")
@@ -111,13 +110,13 @@ public class DiscordBot extends ListenerAdapter {
                             .flatMap(v -> event.getHook().deleteOriginal().delay(3, TimeUnit.SECONDS))
                             .queue();
                 } else {
-                    List<ActionRow> actionRows =  resetGame(channel);
+                    List<ActionRow> actionRows = resetGame(channel);
                     if (!guild.getThreadChannelsByName("CLUES", true).isEmpty()) {
                         guild.getThreadChannelsByName("CLUES", true).get(0).delete().queue();
                     }
                     game.initialiseGame();
                     ebSetupMsg.setTitle("CODENAMES");
-                    ebSetupMsg.setColor(new Color(45,124,71,255));
+                    ebSetupMsg.setColor(new Color(45, 124, 71, 255));
                     ebSetupMsg.setImage("https://cdn.discordapp.com/emojis/879725330426896394.webp?size=56&quality=lossless");
                     ebSetupMsg.clearFields();
                     ebSetupMsg.addField("Players", "", true);
@@ -130,7 +129,7 @@ public class DiscordBot extends ListenerAdapter {
             case "clue":
                 if (!game.isRunning()) {
                     event.reply("```The game is not running```").setEphemeral(true).queue();
-                } else if (!channel.equals(guild.getThreadChannelsByName("CLUES", true).get(0)) ){
+                } else if (!channel.equals(guild.getThreadChannelsByName("CLUES", true).get(0))) {
                     event.reply("```Please send clues in the CLUES thread```").setEphemeral(true).queue();
                 } else if (game.isClueSent()) {
                     event.reply("```A clue has already been sent```").setEphemeral(true).queue();
@@ -179,7 +178,7 @@ public class DiscordBot extends ListenerAdapter {
         if (buttonId.equals("join")) {
             game.addPlayer(user);
             ebSetupMsg.clearFields();
-            ebSetupMsg.addField("Players", game.getNames().toString(),false);
+            ebSetupMsg.addField("Players", game.getNames().toString(), false);
             event.editMessageEmbeds(ebSetupMsg.build()).complete();
         }
 
@@ -188,7 +187,7 @@ public class DiscordBot extends ListenerAdapter {
             if (game.isReady()) {
                 startGame(guild, spymastersChannel, event.getChannel());
                 Button passButton;
-                if (game.getTurn().equals("DANGER")){
+                if (game.getTurn().equals("DANGER")) {
                     passButton = Button.danger("pass", "Pass");
                 } else {
                     passButton = Button.primary("pass", "Pass");
@@ -202,25 +201,27 @@ public class DiscordBot extends ListenerAdapter {
         }
 
         //Buttons to choose word sets
-        else if (buttonId.startsWith("wordset")){
-            ButtonStyle newStyle = style.equals(ButtonStyle.SECONDARY)? ButtonStyle.SUCCESS : ButtonStyle.SECONDARY;
+        else if (buttonId.startsWith("wordset")) {
+            ButtonStyle newStyle = style.equals(ButtonStyle.SECONDARY) ? ButtonStyle.SUCCESS : ButtonStyle.SECONDARY;
             game.editWordset(button.getLabel(), newStyle);
             event.editButton(button.withStyle(newStyle)).complete();
         }
 
         //Pass Button
         else if (buttonId.equals("pass")) {
-            if (!checkPlayerTurn(user)) {
+            if (checkPlayerTurn(user)) {
+                if (game.isClueSent()) {
+                    game.changeTurn();
+                    event.editButton(button.withStyle(ButtonStyle.valueOf(game.getTurn()))).complete();
+                } else {
+                    event.reply("```A clue has not been set yet```").setEphemeral(true).queue();
+                }
+            } else {
                 if (game.isNotPlayer(user)) {
                     event.reply("```You are not a player```").setEphemeral(true).queue();
                 } else {
                     event.reply("```It is currently the opponent's turn```").setEphemeral(true).queue();
                 }
-            } else if (!game.isClueSent()) {
-                event.reply("```A clue has not been set yet```").setEphemeral(true).queue();
-            } else {
-                game.changeTurn();
-                event.editButton(button.withStyle(ButtonStyle.valueOf(game.getTurn()))).complete();
             }
         }
 
@@ -234,14 +235,14 @@ public class DiscordBot extends ListenerAdapter {
                     guild.removeRoleFromMember(spymaster, guild.getRolesByName("spymaster", true).get(0)).complete();
                 }
                 ebSetupMsg.clearFields();
-                ebSetupMsg.addField("Red", "Spymaster: " + game.getTeamsSpymaster().get("DANGER") + "\nTeam: " + game.getRedList().toString(),false);
-                ebSetupMsg.addField("Blue", "Spymaster: " + game.getTeamsSpymaster().get("PRIMARY")  + "\nTeam: " + game.getBlueList().toString(),false);
+                ebSetupMsg.addField("Red", "Spymaster: " + game.getTeamsSpymaster().get("DANGER") + "\nTeam: " + game.getRedList().toString(), false);
+                ebSetupMsg.addField("Blue", "Spymaster: " + game.getTeamsSpymaster().get("PRIMARY") + "\nTeam: " + game.getBlueList().toString(), false);
                 event.editMessageEmbeds(ebSetupMsg.build()).complete();
             }
         }
 
         //Bomb
-        else if(trueStyle == null) {
+        else if (trueStyle == null) {
             List<ActionRow> spymasterActionRows = getSpymasterActionRows();
             String oldMessage = event.getMessage().getContentRaw();
             event.editMessage(oldMessage)
@@ -251,71 +252,70 @@ public class DiscordBot extends ListenerAdapter {
         }
 
         //Game Buttons
-        else if(game.checkPlayerButton(buttonId)) {
-            if (!checkPlayerTurn(user)) {
+        else if (game.checkPlayerButton(buttonId)) {
+            if (checkPlayerTurn(user)) {
+                if (game.isClueSent()) {
+                    //Change the button colour
+                    event.editButton(button.asDisabled().withStyle(trueStyle)).complete();
+                    game.decrementGuesses();
+
+                    //Update score
+                    HashMap<String, Integer> scores = game.getScores();
+                    int redRemaining = scores.get("DANGER");
+                    int blueRemaining = scores.get("PRIMARY");
+                    boolean gameEnd = game.decrementScore(trueStyle.toString());
+
+                    //Check if end game or change turn
+                    String turn = game.getTurn();
+                    if (gameEnd) {
+                        String losingTeam = redRemaining == 0 ? "Blue team" : "Red team";
+                        channel.sendMessage("```" + losingTeam + " got rekt```").queue();
+                    } else if (!trueStyle.toString().equals(turn) || styleString.equals("SECONDARY") || game.getGuesses() == 0) {
+                        game.changeTurn();
+                    }
+                    Color color = game.getTurn().equals("DANGER") ? Color.red : Color.blue;
+                    ebGameMsg.setColor(color);
+                    ebGameMsg.clearFields();
+                    ebGameMsg.addField("Red", String.valueOf(redRemaining), true);
+                    ebGameMsg.addField("Blue", String.valueOf(blueRemaining), true);
+                    ebGameMsg.addField("Turn", (game.getTurn().equals("DANGER") ? "RED" : "BLUE"), true);
+                    botMessage.editMessageEmbeds(ebGameMsg.build()).complete();
+                } else {
+                    event.reply("```A clue has not been set yet```").setEphemeral(true).queue();
+                }
+            } else {
                 if (game.isNotPlayer(user)) {
                     event.reply("```You are not a player```").setEphemeral(true).queue();
                 } else {
                     event.reply("```It is currently the opponent's turn```").setEphemeral(true).queue();
                 }
-            } else if (!game.isClueSent()){
-                event.reply("```A clue has not been set yet```").setEphemeral(true).queue();
-            } else {
-               //Change the button colour
-               event.editButton(button.asDisabled().withStyle(trueStyle)).complete();
-               game.decrementGuesses();
-
-               //Update score
-               HashMap<String, Integer> scores = game.getScores();
-               int redRemaining = scores.get("DANGER");
-               int blueRemaining = scores.get("PRIMARY");
-               boolean gameEnd = game.decrementScore(trueStyle.toString());
-
-               //Check if end game or change turn
-               String turn = game.getTurn();
-               if (gameEnd){
-                   String losingTeam = redRemaining == 0 ? "Blue team" : "Red team";
-                   channel.sendMessage("```" + losingTeam + " got rekt```").queue();
-               }else if (!trueStyle.toString().equals(turn) || styleString.equals("SECONDARY") || game.getGuesses() == 0){
-                   game.changeTurn();
-               }
-               Color color = game.getTurn().equals("DANGER") ? Color.red : Color.blue;
-               ebGameMsg.setColor(color);
-               ebGameMsg.clearFields();
-               ebGameMsg.addField("Red", String.valueOf(redRemaining), true);
-               ebGameMsg.addField("Blue", String.valueOf(blueRemaining), true);
-               ebGameMsg.addField("Turn", (game.getTurn().equals("DANGER") ? "RED" : "BLUE"), true);
-               botMessage.editMessageEmbeds(ebGameMsg.build()).complete();
             }
-        } else {
-            event.deferEdit().queue();
         }
     }
 
     /**
      * Setups and starts game
      */
-    public void startGame(Guild guild, TextChannel spymastersChannel, MessageChannel playersChannel){
-        if(!game.isReady()){
+    public void startGame(Guild guild, TextChannel spymastersChannel, MessageChannel playersChannel) {
+        if (!game.isReady()) {
             playersChannel.sendMessage("```You didn't set the teams you uncultured swine```").queue();
-        }
-        else {
+        } else {
             //Set permissions for spymaster channel
             for (User spymaster : game.getSpymasters()) {
                 guild.addRoleToMember(Objects.requireNonNull(guild.getMember(spymaster)), guild.getRolesByName("spymaster", true).get(0)).complete();
             }
 
             //Generate words
-            HashMap<String,ButtonStyle> wordsInGame = game.start();
+            HashMap<String, ButtonStyle> wordsInGame = game.start();
             spymasterButtonList.clear();
             playerButtonList.clear();
 
             //Create Lists of Buttons for spymaster and shuffle
-            for(String word: wordsInGame.keySet()){
+            for (String word : wordsInGame.keySet()) {
                 ButtonStyle style = wordsInGame.get(word);
                 Button button;
                 if (!style.equals(ButtonStyle.UNKNOWN)) {
-                    button = Button.of(style,  word, word);
+                    button = Button.of(style, word, word);
                 } else {
                     Emote emote = spymastersChannel.getGuild().getEmotesByName("malding_shawty", true).get(0);
                     button = Button.secondary("word", word).withEmoji(Emoji.fromEmote(emote));
@@ -351,11 +351,12 @@ public class DiscordBot extends ListenerAdapter {
 
     /**
      * Creates a new instance of the game
+     *
      * @param channel Channel to send initial message
      */
-    public List<ActionRow> resetGame(MessageChannel channel){
+    public List<ActionRow> resetGame(MessageChannel channel) {
         game.resetGame();
-        spymasterButtonList =  new ArrayList<>();
+        spymasterButtonList = new ArrayList<>();
         playerButtonList = new ArrayList<>();
         List<ActionRow> actionRows = new ArrayList<>();
         actionRows.add(ActionRow.of(
@@ -371,13 +372,13 @@ public class DiscordBot extends ListenerAdapter {
         return actionRows;
     }
 
-    public boolean checkPlayerTurn(User user){
+    public boolean checkPlayerTurn(User user) {
         String turn = game.getTurn();
         return (game.getRed().contains(user) && turn.equals("DANGER")) ||
                 (game.getBlue().contains(user) && turn.equals("PRIMARY"));
     }
 
-    public List<ActionRow> getSpymasterActionRows(){
+    public List<ActionRow> getSpymasterActionRows() {
         List<ActionRow> spymasterActionRows = new ArrayList<>();
         spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(0, 5)));
         spymasterActionRows.add(ActionRow.of(spymasterButtonList.subList(5, 10)));
@@ -387,7 +388,7 @@ public class DiscordBot extends ListenerAdapter {
         return spymasterActionRows;
     }
 
-    public List<ActionRow> getPlayerActionRows(){
+    public List<ActionRow> getPlayerActionRows() {
         List<ActionRow> playerActionRows = new ArrayList<>();
         playerActionRows.add(ActionRow.of(playerButtonList.subList(0, 5)));
         playerActionRows.add(ActionRow.of(playerButtonList.subList(5, 10)));

@@ -37,6 +37,17 @@ public class Codenames {
         guesses = -1;
     }
 
+    static <E> E getRandomElementFromSet(Set<E> set) {
+        Random random = new Random();
+        int randNum = random.nextInt(set.size());
+        Iterator<E> iterator = set.iterator();
+        for (int i = 0; i < randNum; i++) {
+            iterator.next();
+        }
+        E element = iterator.next();
+        set.remove(element);
+        return element;
+    }
 
     public HashSet<User> getRed() {
         return red;
@@ -78,7 +89,6 @@ public class Codenames {
         this.guesses = guesses;
     }
 
-
     public HashSet<User> getSpymasters() {
         return spymaster;
     }
@@ -102,7 +112,6 @@ public class Codenames {
     public void setClueSent(boolean clueSent) {
         this.clueSent = clueSent;
     }
-
 
     public boolean isNotPlayer(User user) {
         return !red.contains(user) && !blue.contains(user);
@@ -131,8 +140,6 @@ public class Codenames {
     public void decrementGuesses() {
         guesses--;
     }
-
-    //WordLists {
 
     /**
      * Updates the wordlist according to the sets chosen
@@ -169,6 +176,10 @@ public class Codenames {
         wordSets.put(wordset, style);
     }
 
+    public HashSet<String> getCustomWords() {
+        return customWords;
+    }
+
     public void setCustomWords(String message) {
         customWords.clear();
         try {
@@ -180,10 +191,6 @@ public class Codenames {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public HashSet<String> getCustomWords() {
-        return customWords;
     }
 
     public HashSet<String> getWordList() {
@@ -258,7 +265,6 @@ public class Codenames {
         running = false;
     }
 
-
     /**
      * Decrements the score of the team that last played
      *
@@ -328,17 +334,5 @@ public class Codenames {
             }
         }
         ready = true;
-    }
-
-    static <E> E getRandomElementFromSet(Set<E> set) {
-        Random random = new Random();
-        int randNum = random.nextInt(set.size());
-        Iterator<E> iterator = set.iterator();
-        for (int i = 0; i < randNum; i++) {
-            iterator.next();
-        }
-        E element = iterator.next();
-        set.remove(element);
-        return element;
     }
 }
