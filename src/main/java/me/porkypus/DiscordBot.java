@@ -315,8 +315,15 @@ public class DiscordBot extends ListenerAdapter {
                 if (!style.equals(ButtonStyle.UNKNOWN)) {
                     button = Button.of(style, word, word);
                 } else {
-                    Emote emote = spymastersChannel.getGuild().getEmotesByName("malding_shawty", true).get(0);
-                    button = Button.secondary("word", word).withEmoji(Emoji.fromEmote(emote));
+                    if (!(spymastersChannel.getGuild().getEmotesByName("malding_shawty", true).isEmpty())) {
+                        Emote emote = spymastersChannel.getGuild().getEmotesByName("malding_shawty", true).get(0);
+                        button = Button.secondary("word", word).withEmoji(Emoji.fromEmote(emote));
+                    } else if (!(spymastersChannel.getGuild().getEmotesByName("bomb", true).isEmpty())) {
+                        Emote emote = spymastersChannel.getGuild().getEmotesByName("bomb", true).get(0);
+                        button = Button.secondary("word", word).withEmoji(Emoji.fromEmote(emote));
+                    } else {
+                        button = Button.secondary("word", word);
+                    }
                 }
                 spymasterButtonList.add(button.asDisabled());
             }
