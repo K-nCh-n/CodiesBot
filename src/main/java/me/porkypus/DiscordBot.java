@@ -3,6 +3,7 @@ package me.porkypus;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -114,6 +115,13 @@ public class DiscordBot extends ListenerAdapter {
                     List<ActionRow> actionRows = resetGame();
                     if (!guild.getThreadChannelsByName("CLUES", true).isEmpty()) {
                         guild.getThreadChannelsByName("CLUES", true).get(0).delete().queue();
+                    }
+                    if (guild.getThreadChannelsByName("spymasters", true).isEmpty()) {
+                        guild.createTextChannel("spymasters")
+                                .addPermissionOverride(guild.getPublicRole(), null, EnumSet.of(Permission.VIEW_CHANNEL))
+                                .queue();
+                        guild.addRoleToMember(Objects.requireNonNull(guild.getMembersByName("CodiesBot", true).get(0)),
+                                guild.getRolesByName("spymaster", true).get(0)).complete();
                     }
                     game.initialiseGame();
                     ebSetupMsg.setTitle("CODENAMES");
