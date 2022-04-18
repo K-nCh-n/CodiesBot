@@ -109,7 +109,6 @@ public class DiscordBot extends ListenerAdapter {
                 if (game.isRunning()) {
                     event.reply("An instance of codies has already been started")
                             .setEphemeral(true)
-                            .flatMap(v -> event.getHook().deleteOriginal().delay(3, TimeUnit.SECONDS))
                             .queue();
                 } else {
                     List<ActionRow> actionRows = resetGame();
